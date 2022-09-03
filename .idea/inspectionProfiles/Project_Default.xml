@@ -1,0 +1,40 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <value>
+          <list size="11">
+            <item index="0" class="java.lang.String" itemvalue="tzlocal" />
+            <item index="1" class="java.lang.String" itemvalue="six" />
+            <item index="2" class="java.lang.String" itemvalue="tzdata" />
+            <item index="3" class="java.lang.String" itemvalue="pytz" />
+            <item index="4" class="java.lang.String" itemvalue="APScheduler" />
+            <item index="5" class="java.lang.String" itemvalue="pytz-deprecation-shim" />
+            <item index="6" class="java.lang.String" itemvalue="Pillow" />
+            <item index="7" class="java.lang.String" itemvalue="mediapipe" />
+            <item index="8" class="java.lang.String" itemvalue="faces-distance" />
+            <item index="9" class="java.lang.String" itemvalue="opencv-python" />
+            <item index="10" class="java.lang.String" itemvalue="PySide6" />
+          </list>
+        </value>
+      </option>
+    </inspection_tool>
+    <inspection_tool class="PyUnresolvedReferencesInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredIdentifiers">
+        <list>
+          <option value="cv2.VideoCapture" />
+          <option value="cv2.destroyAllWindows" />
+          <option value="cv2.waitKey" />
+          <option value="cv2.imshow" />
+          <option value="cv2.setWindowProperty" />
+          <option value="cv2.WND_PROP_FULLSCREEN" />
+          <option value="cv2.WINDOW_FULLSCREEN" />
+          <option value="cv2.namedWindow" />
+          <option value="cv2.WINDOW_NORMAL" />
+          <option value="cv2.flip" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
