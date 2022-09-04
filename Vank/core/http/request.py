@@ -1,7 +1,7 @@
 import json
-import wsgiref.util
-from typing import Dict
-from urllib.parse import quote
+from urllib.parse import unquote_plus
+from http import cookies
+from functools import cached_property
 from Vank.core import exceptions
 import cgi
 
@@ -17,81 +17,133 @@ class BasicRequest:
         self.environ = environ
         # 设置元信息
         self.meta = RequestMeta(environ)
-        # 请求路径
-        self.path: str = quote(environ.get('PATH_INFO'))
 
-        # 解析后的查询字典
-        self.param: dict = self.__parse_param(environ.get('QUERY_STRING', '').encode('latin1'))
+    @cached_property
+    def path(self):
+        """
+        获取请求路径
+        :return:
+        """
+        path_info = self.environ.get('PATH_INFO', '')
+        return unquote_plus(path_info, self.charset, 'replace')
 
-        # 内容类型
-        self.content_type, self.content_params = cgi.parse_header(environ.get('CONTENT_TYPE', ''))
+    @cached_property
+    def content_params(self):
+        """
+        获取content-type后的options
+        :return:
+        """
+        return cgi.parse_header(self.environ.get('CONTENT_TYPE', ''))[1]
 
-        # 读取body中的数据
-        self.stream: bytes = environ.get('wsgi.input').read(self.content_length)
-        # 解析数据
-        self.data: dict = self.__parse_data(self.stream)
-        self.file: Dict[str, bytes] = self.__parse_file()
+    @cached_property
+    def content_type(self):
+        """
+        获取content-type
+        :return:
+        """
+        return cgi.parse_header(self.environ.get('CONTENT_TYPE', ''))[0]
 
-    def __parse_content_length(self, content_length):
-        '''
-        解析content_length
-        '''
-        try:
-            return int(content_length)
-        except ValueError as e:
-            return 0
+    @cached_property
+    def stream(self):
+        """
+        获取数据二进制流
+        :return:
+        """
+        return self.environ.get('wsgi.input').read(self.content_length)
 
-    def __parse_data(self, data: bytes) -> dict:
-        data_dic = {}
-        '''
+    @cached_property
+    def data(self):
+        """
         解析body
-        '''
+        :return:
+        """
+        # TODO 完善数据获取
+        data_dic = {}
         if self.content_type.lower() == 'application/json':
-            try:
-                data_dic.update(json.loads(data))
-            except Exception as e:
-                raise
-
-        if self.content_type.lower() == 'multipart/form-data':
-            print(data.decode().split('--' + self.content_params.get('boundary')))
+            data_dic.update(json.loads(self.stream))
 
         return data_dic
 
-    def __parse_param(self, query) -> dict:
-        print(query)
-        '''
-        解析查询参数
-        '''
-        query_dic = {}
-        for item in query.split('&'):
-            if '=' in item:
-                key, value = item.split('=')
-                query_dic.update({key: value})
+    @cached_property
+    def files(self):
+        """
+        获取文件
+        :return:
+        """
+        # TODO 完善文件解析
+        if not self.method == 'POST':
+            return {}
 
-        return query_dic
+        content_type = self.content_type
+        if content_type == 'multipart/form-data':
+            return
 
-    def __parse_file(self) -> Dict[str, bytes]:
+        elif content_type == 'application/x-www-form-urlencoded':
+            return
+
         return {}
 
-    @property
+    @cached_property
     def charset(self):
+        """
+        获取charset
+        :return:
+        """
+        if 'charset' in self.content_params:
+            return self.content_params.get('charset')
         return 'utf-8'
 
-    @property
+    @cached_property
     def content_length(self):
+        """
+        获取到content-length
+        :return:
+        """
         content_length = self.environ.get('CONTENT_LENGTH', 0)
-        return int(content_length)
+        try:
+            return int(content_length)
+        except:
+            return 0
 
-    @property
+    @cached_property
     def method(self):
-        return self.environ.get('REQUEST_METHOD')
+        """
+        获取请求方法
+        :return:
+        """
+        return self.environ.get('REQUEST_METHOD').upper()
 
-    @property
-    def url_param(self):
-        pass
+    @cached_property
+    def param(self):
+        """
+        获取URL查询参数
+        :return:
+        """
+        query_string = self.environ.get('QUERY_STRING', '').encode('latin1')
+        query_dict = {}
+        for item in query_string.decode(self.charset).split('&'):
+            if '=' in item:
+                key, value = item.split('=')
+                query_dict.update({unquote_plus(key): unquote_plus(value)})
+        return query_dict
 
-    def __repr__(self):
-        return str(self.__dict__)
+    @cached_property
+    def cookies(self):
+        """
+        获取cookie
+        :return:
+        """
+        cookie_dict = {}
+        for cookie in self.environ.get('HTTP_COOKIE', '').split(";"):
+            if "=" in cookie:
+                key, value = cookie.split("=", 1)
+            else:
+                key, value = "", cookie
+            # 如果key或者value存在 那么就添加到cookie_dict当中
+            if key or value:
+                cookie_dict[key.strip()] = cookies._unquote(value.strip())
+
+        return cookie_dict
 
 
 class Request(BasicRequest):
