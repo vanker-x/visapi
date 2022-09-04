@@ -71,7 +71,7 @@ class App:
 
     def __process_response(self, response, startResponse) -> List[bytes]:
         """
-        处理response 将response的状态码,header存入startResponse
+        处理response 调用start_response设置响应状态码和响应头
         并返回一个二进制列表
         :param response: 封装的response 详情请看Vank/core/http/response
         :param startResponse: wsgiref提供的startresponse
