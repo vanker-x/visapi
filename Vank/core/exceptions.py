@@ -1,7 +1,7 @@
 # @filename: exceptions.py
 # @Time:    2022/7/26-1:40
 # @Author:  Vank
-from .http import status
+from Vank.core.http import status
 
 class BasicException(Exception):
     def __init__(self):
