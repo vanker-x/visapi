@@ -2,7 +2,6 @@ import json
 from urllib.parse import unquote_plus
 from http import cookies
 from functools import cached_property
-from Vank.core import exceptions
 import cgi
 
 
