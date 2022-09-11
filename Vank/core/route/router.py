@@ -135,7 +135,7 @@ class BaseRoute:
         例如:将整数字符串转换为int类型
         '''
         for arg_name, arg_value in arguments.items():
-            new_value = self.argument_converters[arg_name].convert(arg_value)
+            new_value = self.argument_converters[arg_name].convert_to_python(arg_value)
             arguments.update({arg_name: new_value})
         return arguments
 
