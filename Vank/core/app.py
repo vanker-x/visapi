@@ -1,18 +1,75 @@
 from typing import List
 from Vank.core.http import request
-from Vank.core.handlers import exception
+from Vank.core.handlers.exception import conv_exc_to_response
 from Vank.core.route.route_map import Route_Map
 from Vank.core.route.router import Route
+from Vank.core.config import conf
+from Vank.utils import import_from_str
 
 __version__ = '0.1.0'
 
 
 class App:
     def __init__(self):
-        # 将项目settings加入system的path
+        # 实例化路由映射表
         self.route_map = Route_Map()
         self.endpoint_func_dic = {}
-        self.error_handler = exception.default_handler
+        # 获取error_handler 捕获全局错误
+        self.error_handler = import_from_str(conf.ERROR_HANDLER)
+        # 初始化视图中间件列表
+        self.__handle_view_middlewares = []
+        # 初始化中间件
+        self.initial_middlewares()
+
+    def initial_middlewares(self):
+        """
+        初始化中间件 接收到的请求将会传入self.middlewares进行处理
+        当配置文件中没有中间件时 self.middlewares 为 conv_exc_to_response
+        :return:
+        """
+        # 将实例方法 get_response 包裹在全局异常处理转换器中
+        get_response_func = conv_exc_to_response(self.__get_response, self.error_handler)
+
+        for m_str in conf.MIDDLEWARES:
+            # 导入中间件类
+            middleware_class = import_from_str(m_str)
+            # 实例化中间件 将handler传入其中
+            middleware_instance = middleware_class(get_response_func)
+
+            if not middleware_instance:
+                raise RuntimeError(f'初始化中间件错误,{middleware_instance} 中间件不应该为空')
+
+            # 如果该中间件有handle_view方法 那么就添加到__handle_view_middlewares中
+            if hasattr(middleware_instance, 'handle_view'):
+                self.__handle_view_middlewares.append(middleware_instance.handle_view)
+            # 将中间件包裹在全局异常处理转换器中
+            get_response_func = conv_exc_to_response(middleware_instance, self.error_handler)
+
+        # 形成一个中间件链
+        self.middlewares = get_response_func
+
+    def __get_response(self, request):
+        """
+        获取response  如果任意一个中间件定义了 handle_view方法  该方法会调用调用handle_view
+        如果 所有的handle_view返回值都是None 那么 请求会进入 对应的视图函数
+
+        :param request:
+        :return:
+        """
+        response = None
+        # 获取到对应的处理试图和该试图所需的参数
+        view_func, view_kwargs = self.__dispatch_route(request)
+
+        for view_handle in self.__handle_view_middlewares:
+            response = view_handle(request, view_func, **view_kwargs)
+            if response:
+                break
+
+        # 如果handle_view 没有返回response 那么就交给视图函数处理
+        if not response:
+            response = view_func(request, **view_kwargs)
+
+        return response
 
     def __set_route(self, route_path, view_func, methods, *args, **kwargs):
         '''
@@ -69,7 +126,7 @@ class App:
 
         return view_function, view_kwargs
 
-    def __process_response(self, response, startResponse) -> List[bytes]:
+    def _finish_response(self, response, startResponse) -> List[bytes]:
         """
         处理response 调用start_response设置响应状态码和响应头
         并返回一个二进制列表
@@ -82,17 +139,12 @@ class App:
 
     def __call__(self, environ, startResponse):
         """
-
+        被WSGI Server调用
         :param environ:环境变量以及请求参数等
         :param startResponse:wsgi提供的一个function 我们需要给他设置响应码以及响应头等信息
         :return:list[bytes]一个二进制列表 作为响应数据
         """
         Request = request.Request(environ)
-        # 全局的错误捕获
-        try:
-            func, view_args = self.__dispatch_route(Request)
-            Response = func(Request, **view_args)
-        except Exception as exc:
-            Response = self.error_handler(Request, exc)
+        Response = self.middlewares(Request)
 
-        return self.__process_response(Response, startResponse)
+        return self._finish_response(Response, startResponse)
