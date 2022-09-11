@@ -37,4 +37,4 @@ class Route_Map:
             return endpoint, arguments
 
         # 如果路由规则都没有找到那么就报404错误
-        raise exceptions.NotFoundException
+        raise exceptions.NotFoundException(f'资源 {request.path} 未找到')
