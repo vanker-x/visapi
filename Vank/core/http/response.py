@@ -6,7 +6,7 @@ from Vank.core.http.status import *
 
 
 
-class BasicResponse:
+class BaseResponse:
     def __init__(self, request, data, status=HTTP_200_OK, header=None, *args, **kwargs):
 
         self.status_code = status
@@ -31,7 +31,7 @@ class BasicResponse:
             return 'utf-8'
 
 
-class Response404(BasicResponse):
+class Response404(BaseResponse):
     def __init__(self, request, error: Union[dict, str], *args, **kwargs):
         '''
         资源未找到
@@ -42,7 +42,7 @@ class Response404(BasicResponse):
         super(Response404, self).__init__(request, data=error, status=HTTP_404_NOT_FOUND)
 
 
-class Response405(BasicResponse):
+class Response405(BaseResponse):
     def __init__(self, request, error: Union[dict, str], *args, **kwargs):
         '''
         方法不允许
@@ -53,7 +53,7 @@ class Response405(BasicResponse):
         super(Response405, self).__init__(request, data=error, status=HTTP_405_METHOD_NOT_ALLOWED)
 
 
-class Response(BasicResponse):
+class Response(BaseResponse):
     def __init__(self, request, data: Union[str, dict, bytes], status: int = HTTP_200_OK, headers={}, *args,
                  **kwargs):
         '''
@@ -67,7 +67,7 @@ class Response(BasicResponse):
         super(Response, self).__init__(request, data, status, headers, *args, **kwargs)
 
 
-class ResponseStreaming(BasicResponse):
+class ResponseStreaming(BaseResponse):
     def __init__(self, request, stream: bytes, status, *args, **kwargs):
         '''
         流响应

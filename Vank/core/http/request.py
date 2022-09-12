@@ -11,7 +11,7 @@ class RequestMeta:
             setattr(self, k, v)
 
 
-class BasicRequest:
+class BaseRequest:
     def __init__(self, environ: dict):
         self.environ = environ
         # 设置元信息
@@ -145,6 +145,6 @@ class BasicRequest:
         return cookie_dict
 
 
-class Request(BasicRequest):
+class Request(BaseRequest):
     def __init__(self, environ: dict):
         super(Request, self).__init__(environ)
