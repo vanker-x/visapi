@@ -1,10 +1,15 @@
 from typing import List
-from Vank.core.http import request
-from Vank.core.handlers.exception import conv_exc_to_response
-from Vank.core.route.route_map import Route_Map
-from Vank.core.route.router import Route
+
 from Vank.core.config import conf
 from Vank.utils import import_from_str
+from Vank.core.route.router import Route
+from Vank.core.route.route_map import Route_Map
+from Vank.core.exceptions import NonResponseException
+from Vank.core.handlers.exception import conv_exc_to_response
+from Vank.core.http import (
+    request as req,
+    response as rep
+)
 
 __version__ = '0.1.0'
 
@@ -53,6 +58,9 @@ class App:
         获取response  如果任意一个中间件定义了 handle_view方法  该方法会调用调用handle_view
         如果 所有的handle_view返回值都是None 那么 请求会进入 对应的视图函数
 
+        当 视图函数返回一个非 BaseResponse 或 BaseResponse子类实例时
+        raise NonResponseException
+
         :param request:
         :return:
         """
@@ -68,6 +76,9 @@ class App:
         # 如果handle_view 没有返回response 那么就交给视图函数处理
         if not response:
             response = view_func(request, **view_kwargs)
+        # 当视图返回的不是BaseResponse 或 BaseResponse子类的实例 raise NonResponseException
+        if not isinstance(response, rep.BaseResponse):
+            raise NonResponseException("服务未返回任何数据")
 
         return response
 
@@ -90,16 +101,20 @@ class App:
             endpoint: view_func
         })
 
-    def new_route(self, route_path: str, methods=List[str], **kwargs):
+    def new_route(self, route_path: str, methods: List[str], **kwargs):
         def decorator(view_func: callable):
-            # 判断是否可调用
-            assert callable(view_func), f'路由"{route_path}"所装饰的对象不可调用'
             # 判断路由是否以/开头
             assert route_path.startswith('/'), f'{view_func.__name__}视图的路由"{route_path}"应该以/开头'
             # 调用set_route方法
             self.__set_route(route_path, view_func, methods, **kwargs)
 
         return decorator
+
+    def add_route(self, route_path: str, methods: List[str], view_func, **kwargs):
+        assert callable(view_func), 'view_func 必须为可调用对象'
+        assert route_path.startswith('/'), f'{view_func.__name__}视图的路由"{route_path}"应该以/开头'
+        self.__set_route(route_path, view_func, methods, **kwargs)
+        return self
 
     def start(self, host: str = 'localhost', port: int = 8000):
         """
@@ -144,7 +159,7 @@ class App:
         :param startResponse:wsgi提供的一个function 我们需要给他设置响应码以及响应头等信息
         :return:list[bytes]一个二进制列表 作为响应数据
         """
-        Request = request.Request(environ)
-        Response = self.middlewares(Request)
+        request = req.Request(environ)
+        response = self.middlewares(request)
 
-        return self._finish_response(Response, startResponse)
+        return self._finish_response(response, startResponse)

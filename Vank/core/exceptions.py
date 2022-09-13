@@ -14,3 +14,7 @@ class MethodNotAllowedException(Exception):
 
 class PermissionDeniedException(Exception):
     """权限错误"""
+
+
+class NonResponseException(Exception):
+    """视图未返回Response"""
