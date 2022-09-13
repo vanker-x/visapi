@@ -64,14 +64,3 @@ class BaseMiddleware:
             response = self.handle_response(request, response)
 
         return response
-
-
-class A(BaseMiddleware):
-    def handle_request(self, request):
-        return None
-
-    def handle_view(self, request, view_func, **view_kwargs):
-        pass
-
-    def handle_response(self, request, response, ):
-        return response
