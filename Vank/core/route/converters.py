@@ -1,4 +1,5 @@
 from uuid import UUID
+from abc import ABCMeta, abstractmethod
 
 """
 这个模块 将路由字符串转换为对应的Python Object 或者 将Python Object 转换为url
@@ -8,25 +9,27 @@ from uuid import UUID
 """
 
 
-class BasicConverter:
+class BasicConverter(metaclass=ABCMeta):
     def __init__(self, regex):
         self.regex = regex
 
+    @abstractmethod
     def convert_to_python(self, value):
         """
         将 value 转换为python Object 此方法应由子类完成
         :param value: 需要被转换为Python Object的值
         :return:
         """
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def convert_to_url(self, value):
         """
         将Python Object 转换为 url  此方法应由子类完成
         :param value: Python Object
         :return:
         """
-        raise NotImplementedError
+        pass
 
 
 # 数字转换器
@@ -37,6 +40,9 @@ class IntConverter(BasicConverter):
 
     def convert_to_python(self, value):
         return int(value)
+
+    def convert_to_url(self, value):
+        return str(value)
 
 
 # 字符串转换器
