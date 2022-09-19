@@ -2,10 +2,29 @@
 # @Time:    2022/7/26-2:31
 # @Author:  Vank
 
-def app(file):
+
+def setup_config():
+    """
+    设置项目配置到环境变量中 以便框架能够读取到项目的settings.py 文件
+    :return:
+    """
     import os
+    import sys
     from pathlib import Path
-    Project_Dir = Path(file).parent.name
-    os.environ.setdefault('PROJECT_SETTING', f'{Project_Dir}.settings')
+    if os.environ.get('PROJECT_SETTING'):
+        return
+    main_file = sys.argv[0]
+    project_name = Path(main_file).parent.name
+    os.environ.setdefault('PROJECT_SETTING', f'{project_name}.settings')
+
+
+setup_config()
+
+
+def Application():
+    """
+    返回一个App实例
+    :return:
+    """
     from .app import App
     return App()
