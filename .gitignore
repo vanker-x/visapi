@@ -1,3 +1,5 @@
 localtest
 __pycache__
 .idea
+dist
+Vank.egg-info
