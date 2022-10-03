@@ -53,9 +53,9 @@ class BaseRoute:
 
     def __parse_methods(self, methods: list):
         if not methods:
-            return ['GET', 'POST', 'OPTION', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'TRACE', 'CONNECT']
+            return ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"]
         methods_upper = [method.upper() for method in methods]
-        if not set(methods_upper) < {'GET', 'POST', 'OPTION', 'PUT', 'PATCH', 'DELETE', 'HEAD'}:
+        if not set(methods_upper) < {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"}:
             raise ValueError(f'{self.endpoint}定义路由请求方法时出错,存在非HTTP请求方法')
         return methods_upper
 
