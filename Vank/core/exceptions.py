@@ -18,3 +18,7 @@ class PermissionDeniedException(Exception):
 
 class NonResponseException(Exception):
     """视图未返回Response"""
+
+
+class NoneViewMethodException(Exception):
+    """类视图未定义至少一个类方法"""

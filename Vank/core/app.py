@@ -1,6 +1,7 @@
 from typing import List
-
+from types import FunctionType
 from Vank.core.config import conf
+from Vank.core.views.view import View
 from Vank.utils import import_from_str
 from Vank.core.route.router import Route
 from Vank.core.route.route_map import Route_Map
@@ -101,12 +102,21 @@ class App:
             endpoint: view_func
         })
 
-    def new_route(self, route_path: str, methods: List[str], **kwargs):
-        def decorator(view_func: callable):
+    def new_route(self, route_path: str, methods=None, **kwargs):
+        def decorator(func_or_class):
+            # 判断是否为类视图
+            if hasattr(func_or_class, 'get_view_methods') and issubclass(func_or_class, View):
+                view = func_or_class()
+                methods_list = view.get_view_methods
+            elif isinstance(func_or_class, FunctionType):
+                view = func_or_class
+                methods_list = methods
+            else:
+                raise Exception(f'{func_or_class}视图应该为一个函数或View的子类')
             # 判断路由是否以/开头
-            assert route_path.startswith('/'), f'{view_func.__name__}视图的路由"{route_path}"应该以/开头'
+            assert route_path.startswith('/'), f'{view.__name__}视图的路由"{route_path}"应该以/开头'
             # 调用set_route方法
-            self.__set_route(route_path, view_func, methods, **kwargs)
+            self.__set_route(route_path, view, methods_list, **kwargs)
 
         return decorator
 
@@ -149,7 +159,7 @@ class App:
         :param startResponse: wsgiref提供的startresponse
         :return: list[bytes] 返回的body数据
         """
-        startResponse(response.status_code, list(response.header.items()))
+        startResponse(response.status, list(response.header.items()))
         return [response.data]
 
     def __call__(self, environ, startResponse):

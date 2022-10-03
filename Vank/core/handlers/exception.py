@@ -1,4 +1,4 @@
-from Vank.core.http.status import *
+from Vank.core.http import HTTP_Status
 from Vank.core.http.response import Response
 from Vank.core.exceptions import *
 from Vank.utils.exception import get_exception_reason
@@ -32,18 +32,18 @@ def default_handler(request, exec):
         errors = {
             'error': get_exception_reason(exec)
         }
-        return Response(request, errors, status=HTTP_404_NOT_FOUND)
+        return Response(errors, status=HTTP_Status.HTTP_404_NOT_FOUND)
 
     if isinstance(exec, MethodNotAllowedException):
         errors = {
             'error': get_exception_reason(exec)
         }
-        return Response(request, errors, status=HTTP_405_METHOD_NOT_ALLOWED)
+        return Response(errors, status=HTTP_Status.HTTP_405_METHOD_NOT_ALLOWED)
 
     if isinstance(exec, PermissionDeniedException):
         errors = {
             'error': get_exception_reason(exec)
         }
-        return Response(request, errors, status=HTTP_403_FORBIDDEN)
+        return Response(errors, status=HTTP_Status.HTTP_403_FORBIDDEN)
 
-    return Response(request, {'error': get_exception_reason(exec)}, status=HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response({'error': get_exception_reason(exec)}, status=HTTP_Status.HTTP_500_INTERNAL_SERVER_ERROR)
