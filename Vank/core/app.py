@@ -19,11 +19,14 @@ class App:
     def __init__(self):
         # 实例化路由映射表
         self.route_map = Route_Map()
+        # endpoint 字典
         self.endpoint_func_dic = {}
         # 获取error_handler 捕获全局错误
         self.error_handler = import_from_str(conf.ERROR_HANDLER)
         # 初始化视图中间件列表
         self.__handle_view_middlewares = []
+        # 请求的入口函数
+        self.entry_func = None
         # 初始化中间件
         self.initial_middlewares()
 
@@ -52,7 +55,7 @@ class App:
             get_response_func = conv_exc_to_response(middleware_instance, self.error_handler)
 
         # 形成一个中间件链
-        self.middlewares = get_response_func
+        self.entry_func = get_response_func
 
     def __get_response(self, request):
         """
@@ -88,19 +91,17 @@ class App:
         添加路由
         '''
         # 获取endpoint
-        endpoint = view_func.__name__ if not kwargs.get('endpoint') else kwargs.pop('endpoint')
+        endpoint = kwargs.get('endpoint') or view_func.__name__
         # 实例化一个路由
         route = Route(route_path, methods, endpoint, **kwargs)
         # 添加到路由映射表中
         self.route_map.add_route(route_path, route)
-        # 判断是否有相同的endpoint 如果有则报错
-        func = self.endpoint_func_dic.get(endpoint)
-        if func and not view_func == func:
+        # 判断是否有相同的endpoint 否则报错
+        exist_func = self.endpoint_func_dic.get(endpoint, None)
+        if exist_func and view_func is not exist_func:
             raise ValueError(f'不能同时存在相同的endpoint:[{endpoint}]')
 
-        self.endpoint_func_dic.update({
-            endpoint: view_func
-        })
+        self.endpoint_func_dic[endpoint] = view_func
 
     def new_route(self, route_path: str, methods=None, **kwargs):
         def decorator(func_or_class):
@@ -135,7 +136,8 @@ class App:
         """
         assert self.endpoint_func_dic, '未能找到至少一个以上的视图处理请求'
         from wsgiref.simple_server import make_server
-        tip = f"""Vank {__version__} 已开启 该服务仅用于开发模式,切勿用于生产环境 生产环境请由WSGI服务器开启 例如uwsgi、gunicorn
+        tip = f"""Vank {__version__} 已开启 该服务仅用于开发模式
+切勿用于生产环境 生产环境请由WSGI服务器开启 例如uwsgi、gunicorn
 服务地址:http://{host}:{port}/"""
         print(tip)
         make_server(host, port, self).serve_forever()
@@ -170,6 +172,6 @@ class App:
         :return:list[bytes]一个二进制列表 作为响应数据
         """
         request = req.Request(environ)
-        response = self.middlewares(request)
+        response = self.entry_func(request)
 
         return self._finish_response(response, startResponse)
