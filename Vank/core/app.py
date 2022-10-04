@@ -79,7 +79,7 @@ class App:
             response = view_func(request, **view_kwargs)
         # 当视图返回的不是BaseResponse 或 BaseResponse子类的实例 raise NonResponseException
         if not isinstance(response, rep.BaseResponse):
-            raise NonResponseException("服务未返回任何数据")
+            raise NonResponseException("服务应返回一个Response实例")
 
         return response
 
