@@ -103,17 +103,21 @@ class App:
 
         self.endpoint_func_dic[endpoint] = view_func
 
+    def adapt_view_func(self, func_or_class, methods):
+        # 判断是否为类视图
+        if hasattr(func_or_class, 'get_view_methods') and issubclass(func_or_class, View):
+            view = func_or_class()
+            methods_list = view.get_view_methods
+        elif isinstance(func_or_class, FunctionType):
+            view = func_or_class
+            methods_list = methods
+        else:
+            raise Exception(f'{func_or_class}视图应该为一个函数或View的子类')
+        return view, methods_list
+
     def new_route(self, route_path: str, methods=None, **kwargs):
         def decorator(func_or_class):
-            # 判断是否为类视图
-            if hasattr(func_or_class, 'get_view_methods') and issubclass(func_or_class, View):
-                view = func_or_class()
-                methods_list = view.get_view_methods
-            elif isinstance(func_or_class, FunctionType):
-                view = func_or_class
-                methods_list = methods
-            else:
-                raise Exception(f'{func_or_class}视图应该为一个函数或View的子类')
+            view, methods_list = self.adapt_view_func(func_or_class, methods)
             # 判断路由是否以/开头
             assert route_path.startswith('/'), f'{view.__name__}视图的路由"{route_path}"应该以/开头'
             # 调用set_route方法
@@ -121,10 +125,10 @@ class App:
 
         return decorator
 
-    def add_route(self, route_path: str, methods: List[str], view_func, **kwargs):
-        assert callable(view_func), 'view_func 必须为可调用对象'
-        assert route_path.startswith('/'), f'{view_func.__name__}视图的路由"{route_path}"应该以/开头'
-        self.__set_route(route_path, view_func, methods, **kwargs)
+    def add_route(self, route_path: str, func_or_class, methods=None, **kwargs):
+        view, methods_list = self.adapt_view_func(func_or_class, methods)
+        assert route_path.startswith('/'), f'{view.__name__}视图的路由"{route_path}"应该以/开头'
+        self.__set_route(route_path, view, methods_list, **kwargs)
         return self
 
     def start(self, host: str = 'localhost', port: int = 8000):
