@@ -2,9 +2,8 @@
 # @Time:    2022/7/26-0:33
 # @Author:  Vank
 import re
-from Vank.core.http.response import Response
-from importlib import import_module
 from Vank.core.config import conf
+from importlib import import_module
 
 
 class BaseRoute:
@@ -146,11 +145,3 @@ class Route(BaseRoute):
 
     def check_method(self, request_method):
         return request_method.upper() in self.methods
-
-    def default_options_response(self, request):
-        '''
-        处理该路由的options方法
-        :param request:
-        :return:
-        '''
-        return Response(request, '')
