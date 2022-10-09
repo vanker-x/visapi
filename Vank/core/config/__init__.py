@@ -1,10 +1,12 @@
-from importlib import import_module
 import os
+from importlib import import_module
+
+from Vank.core.config.base import BaseSettings
 
 ENVIROMENT_VARIABLE_OF_PROJECT = 'PROJECT_SETTING'
 
 
-class Settings:
+class Settings(BaseSettings):
     def __init__(self):
         module = os.environ.get(ENVIROMENT_VARIABLE_OF_PROJECT, None)
         if not module:
