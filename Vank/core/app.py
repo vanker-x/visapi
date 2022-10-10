@@ -86,7 +86,7 @@ class App:
 
         return response
 
-    def __set_route(self, route_path, view_func, methods, *args, **kwargs):
+    def __set_route(self, route_path, view_func, methods, **kwargs):
         '''
         添加路由
         '''
@@ -106,24 +106,57 @@ class App:
     def adapt_view_func(self, func_or_class, methods):
         # 判断是否为类视图
         if hasattr(func_or_class, 'get_view_methods') and issubclass(func_or_class, View):
+            # 当视图为 View 视图的子类时 methods 应该为None
+            if methods is not None:
+                raise ValueError(f'使用类视图 {func_or_class} 不应传入methods 参数')
             view = func_or_class()
             methods_list = view.get_view_methods
         elif isinstance(func_or_class, FunctionType):
             view = func_or_class
             methods_list = methods
         else:
-            raise Exception(f'{func_or_class}视图应该为一个函数或View的子类')
+            raise ValueError(f'{func_or_class}视图应该为一个函数或View的子类')
         return view, methods_list
 
     def new_route(self, route_path: str, methods=None, **kwargs):
         def decorator(func_or_class):
             view, methods_list = self.adapt_view_func(func_or_class, methods)
             # 判断路由是否以/开头
-            assert route_path.startswith('/'), f'{view.__name__}视图的路由"{route_path}"应该以/开头'
+            assert route_path.startswith('/'), f'{view} 视图的路由"{route_path}"应该以/开头'
             # 调用set_route方法
             self.__set_route(route_path, view, methods_list, **kwargs)
 
         return decorator
+
+    def get(self, route_path, **kwargs):
+        """
+        注册视图允许的请求方法仅为get的快捷方式
+        """
+        return self.new_route(route_path, ['GET'], **kwargs)
+
+    def post(self, route_path, **kwargs):
+        """
+        注册视图允许的请求方法仅为post的快捷方式
+        """
+        return self.new_route(route_path, ['POST'], **kwargs)
+
+    def put(self, route_path, **kwargs):
+        """
+        注册视图允许的请求方法仅为put的快捷方式
+        """
+        return self.new_route(route_path, ['PUT'], **kwargs)
+
+    def patch(self, route_path, **kwargs):
+        """
+        注册视图允许的请求方法仅为patch的快捷方式
+        """
+        return self.new_route(route_path, ['PATCH'], **kwargs)
+
+    def delete(self, route_path, **kwargs):
+        """
+        注册视图允许的请求方法仅为delete的快捷方式
+        """
+        return self.new_route(route_path, ['DELETE'], **kwargs)
 
     def add_route(self, route_path: str, func_or_class, methods=None, **kwargs):
         view, methods_list = self.adapt_view_func(func_or_class, methods)
