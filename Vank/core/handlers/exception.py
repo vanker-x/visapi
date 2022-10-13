@@ -12,9 +12,9 @@ def conv_exc_to_response(get_response_func, error_handler):
     :return:
     """
 
-    def inner(request):
+    def inner(request, *args, **kwargs):
         try:
-            return get_response_func(request)
+            return get_response_func(request, *args, **kwargs)
         except Exception as e:
             return error_handler(request, e)
 

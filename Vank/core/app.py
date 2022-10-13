@@ -72,7 +72,12 @@ class App:
         # 获取到对应的处理试图和该试图所需的参数
         view_func, view_kwargs = self.__dispatch_route(request)
 
-        for view_handle in self.__handle_view_middlewares:
+        handle_view_middlewares = self.__handle_view_middlewares.copy()
+        # 判断视图函数是否有handle_view_middlewares 方法 有则extend到全局的handle_view_middlewares中
+        if hasattr(view_func, 'handle_view_middlewares'):
+            handle_view_middlewares.extend(getattr(view_func, 'handle_view_middlewares'))
+        # 执行handle_view
+        for view_handle in handle_view_middlewares:
             response = view_handle(request, view_func, **view_kwargs)
             if response:
                 break
