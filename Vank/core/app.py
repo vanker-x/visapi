@@ -1,8 +1,10 @@
+import logging
 from typing import List
 from types import FunctionType
 from Vank.core.config import conf
 from Vank.core.views.view import View
 from Vank.utils import import_from_str
+from Vank.utils.log import setup_config
 from Vank.core.route.router import Route
 from Vank.core.route.route_map import Route_Map
 from Vank.core.exceptions import NonResponseException
@@ -13,6 +15,7 @@ from Vank.core.http import (
 )
 
 __version__ = '0.1.0'
+logger = logging.getLogger('console')
 
 
 class App:
@@ -29,6 +32,8 @@ class App:
         self.entry_func = None
         # 初始化中间件
         self.initial_middlewares()
+        # 配置logging
+        setup_config(conf.LOGGING)
 
     def initial_middlewares(self):
         """
@@ -178,10 +183,9 @@ class App:
         """
         assert self.endpoint_func_dic, '未能找到至少一个以上的视图处理请求'
         from wsgiref.simple_server import make_server
-        tip = f"""Vank {__version__} 已开启 该服务仅用于开发模式
-切勿用于生产环境 生产环境请由WSGI服务器开启 例如uwsgi、gunicorn
-服务地址:http://{host}:{port}/"""
-        print(tip)
+        logger.warning(f"你的服务运行于:http://{host}:{port}/"
+                       f"这只适用于开发环境,请勿用于生产环境;"
+                       f"请使用gunicorn、uwsgi等wsgi服务器启动")
         make_server(host, port, self).serve_forever()
 
     def __dispatch_route(self, request):

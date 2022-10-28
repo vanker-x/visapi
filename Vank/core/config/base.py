@@ -14,3 +14,5 @@ class BaseSettings:
     MIDDLEWARES = []
     # 错误处理器
     ERROR_HANDLER = ""
+    # 日志
+    LOGGING = {}
