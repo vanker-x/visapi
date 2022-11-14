@@ -12,7 +12,7 @@ def import_from_str(import_str: str):
     :return: 类或属性
     """
     try:
-        moudle, att_or_class = import_str.rsplit('.', 1)
-        return getattr(import_module(moudle), att_or_class)
+        module, att_or_class = import_str.rsplit('.', 1)
+        return getattr(import_module(module), att_or_class)
     except Exception as e:
         raise ImportError(f'导入{import_str}失败,路径应该用.分开 例如 Vank.utils.load_module.import_from_str')
