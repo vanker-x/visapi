@@ -29,7 +29,7 @@ class View:
         http_methods = ["get", "post", "put", "patch", "delete", "head", "options", "trace"]
         allowed_methods = [method for method in http_methods if hasattr(self, method)]
         if not allowed_methods:
-            raise NoneViewMethodException('类视图应至少定义一个http请求方法所对应的类方法')
+            raise NoneViewMethodException('类视图应至少定义一个http请求方法所对应的方法')
         return allowed_methods
 
     def get_response(self, request, *args, **kwargs):

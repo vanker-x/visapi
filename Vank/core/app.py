@@ -1,12 +1,12 @@
 import logging
-from typing import List
+from typing import List, Optional, Union
 from types import FunctionType
 from Vank.core.config import conf
 from Vank.core.views.view import View
 from Vank.utils import import_from_str
-from Vank.utils.log import setup_config
-from Vank.core.route.router import Route
-from Vank.core.route.route_map import Route_Map
+from Vank.utils.log import setup_config as setup_log_config
+from Vank.core.routing.route import Route
+from Vank.core.routing.router import Router
 from Vank.core.exceptions import NonResponseException
 from Vank.core.handlers.exception import conv_exc_to_response
 from Vank.core.http import (
@@ -18,12 +18,87 @@ __version__ = '0.1.0'
 logger = logging.getLogger('console')
 
 
-class App:
+class Base:
     def __init__(self):
         # 实例化路由映射表
-        self.route_map = Route_Map()
-        # endpoint 字典
-        self.endpoint_func_dic = {}
+        self.router = Router()
+
+    def __set_route(self, route_path, view_func, methods, **kwargs):
+        """
+        添加路由
+        """
+        assert route_path.startswith('/'), f'{view_func} 视图的路由"{route_path}"应该以/开头'
+        # 获取endpoint
+        endpoint = kwargs.pop('endpoint', None) or view_func.__name__
+        if isinstance(self, SubApplication):
+            endpoint = f'{self.name}.{endpoint}'
+        # 实例化一个路由
+        route = Route(route_path, methods, endpoint, **kwargs)
+        # 添加到路由映射表中
+        self.router.add_route(route_path, route, view_func)
+
+    def adapt_view_func(self, func_or_class, methods):
+        # 判断是否为类视图
+        if hasattr(func_or_class, 'get_view_methods') and issubclass(func_or_class, View):
+            # 当视图为 View 视图的子类时 methods 应该为None
+            if methods is not None:
+                raise ValueError(f'使用类视图 {func_or_class} 不应传入methods 参数')
+            view = func_or_class()
+            methods_list = view.get_view_methods
+        elif isinstance(func_or_class, FunctionType):
+            view = func_or_class
+            methods_list = methods
+        else:
+            raise ValueError(f'视图应该为一个函数或View的子类 而不是{func_or_class}')
+        return view, methods_list
+
+    def new_route(self, route_path: str, methods=None, **kwargs):
+        def decorator(func_or_class):
+            view, methods_list = self.adapt_view_func(func_or_class, methods)
+            # 调用set_route方法
+            self.__set_route(route_path, view, methods_list, **kwargs)
+            return func_or_class
+
+        return decorator
+
+    def get(self, route_path, **kwargs):
+        """
+        注册视图允许的请求方法仅为get的快捷方式
+        """
+        return self.new_route(route_path, ['GET'], **kwargs)
+
+    def post(self, route_path, **kwargs):
+        """
+        注册视图允许的请求方法仅为post的快捷方式
+        """
+        return self.new_route(route_path, ['POST'], **kwargs)
+
+    def put(self, route_path, **kwargs):
+        """
+        注册视图允许的请求方法仅为put的快捷方式
+        """
+        return self.new_route(route_path, ['PUT'], **kwargs)
+
+    def patch(self, route_path, **kwargs):
+        """
+        注册视图允许的请求方法仅为patch的快捷方式
+        """
+        return self.new_route(route_path, ['PATCH'], **kwargs)
+
+    def delete(self, route_path, **kwargs):
+        """
+        注册视图允许的请求方法仅为delete的快捷方式
+        """
+        return self.new_route(route_path, ['DELETE'], **kwargs)
+
+    def add_route(self, route_path: str, func_or_class, methods=None, **kwargs):
+        self.new_route(route_path,methods,**kwargs)(func_or_class)
+        return self
+
+
+class Application(Base):
+    def __init__(self):
+        super(Application, self).__init__()
         # 获取error_handler 捕获全局错误
         self.error_handler = import_from_str(conf.ERROR_HANDLER)
         # 初始化视图中间件列表
@@ -33,7 +108,7 @@ class App:
         # 初始化中间件
         self.initial_middlewares()
         # 配置logging
-        setup_config(conf.LOGGING)
+        setup_log_config(conf.LOGGING)
 
     def initial_middlewares(self):
         """
@@ -96,84 +171,6 @@ class App:
 
         return response
 
-    def __set_route(self, route_path, view_func, methods, **kwargs):
-        '''
-        添加路由
-        '''
-        # 获取endpoint
-        endpoint = kwargs.get('endpoint') or view_func.__name__
-        # 实例化一个路由
-        route = Route(route_path, methods, endpoint, **kwargs)
-        # 添加到路由映射表中
-        self.route_map.add_route(route_path, route)
-        # 判断是否有相同的endpoint 否则报错
-        exist_func = self.endpoint_func_dic.get(endpoint, None)
-        if exist_func and view_func is not exist_func:
-            raise ValueError(f'不能同时存在相同的endpoint:[{endpoint}]')
-
-        self.endpoint_func_dic[endpoint] = view_func
-
-    def adapt_view_func(self, func_or_class, methods):
-        # 判断是否为类视图
-        if hasattr(func_or_class, 'get_view_methods') and issubclass(func_or_class, View):
-            # 当视图为 View 视图的子类时 methods 应该为None
-            if methods is not None:
-                raise ValueError(f'使用类视图 {func_or_class} 不应传入methods 参数')
-            view = func_or_class()
-            methods_list = view.get_view_methods
-        elif isinstance(func_or_class, FunctionType):
-            view = func_or_class
-            methods_list = methods
-        else:
-            raise ValueError(f'{func_or_class}视图应该为一个函数或View的子类')
-        return view, methods_list
-
-    def new_route(self, route_path: str, methods=None, **kwargs):
-        def decorator(func_or_class):
-            view, methods_list = self.adapt_view_func(func_or_class, methods)
-            # 判断路由是否以/开头
-            assert route_path.startswith('/'), f'{view} 视图的路由"{route_path}"应该以/开头'
-            # 调用set_route方法
-            self.__set_route(route_path, view, methods_list, **kwargs)
-
-        return decorator
-
-    def get(self, route_path, **kwargs):
-        """
-        注册视图允许的请求方法仅为get的快捷方式
-        """
-        return self.new_route(route_path, ['GET'], **kwargs)
-
-    def post(self, route_path, **kwargs):
-        """
-        注册视图允许的请求方法仅为post的快捷方式
-        """
-        return self.new_route(route_path, ['POST'], **kwargs)
-
-    def put(self, route_path, **kwargs):
-        """
-        注册视图允许的请求方法仅为put的快捷方式
-        """
-        return self.new_route(route_path, ['PUT'], **kwargs)
-
-    def patch(self, route_path, **kwargs):
-        """
-        注册视图允许的请求方法仅为patch的快捷方式
-        """
-        return self.new_route(route_path, ['PATCH'], **kwargs)
-
-    def delete(self, route_path, **kwargs):
-        """
-        注册视图允许的请求方法仅为delete的快捷方式
-        """
-        return self.new_route(route_path, ['DELETE'], **kwargs)
-
-    def add_route(self, route_path: str, func_or_class, methods=None, **kwargs):
-        view, methods_list = self.adapt_view_func(func_or_class, methods)
-        assert route_path.startswith('/'), f'{view.__name__}视图的路由"{route_path}"应该以/开头'
-        self.__set_route(route_path, view, methods_list, **kwargs)
-        return self
-
     def start(self, host: str = 'localhost', port: int = 8000):
         """
         开启服务
@@ -181,12 +178,22 @@ class App:
         :param port: 服务端口
         :return: None
         """
-        assert self.endpoint_func_dic, '未能找到至少一个以上的视图处理请求'
+        assert self.router.endpoint_func_dic, '未能找到至少一个以上的视图处理请求'
         from wsgiref.simple_server import make_server
         logger.warning(f"你的服务运行于:http://{host}:{port}/"
                        f"这只适用于开发环境,请勿用于生产环境;"
                        f"请使用gunicorn、uwsgi等wsgi服务器启动")
         make_server(host, port, self).serve_forever()
+
+    def include(self, sub: Union[str, "SubApplication"]):
+        """
+        类似于Flask的蓝图 blueprint
+        """
+        if isinstance(sub, str):
+            sub = import_from_str(sub)
+        if not isinstance(sub, SubApplication):
+            raise TypeError(f"参数 sub类型不应该为{type(sub)}")
+        self.router.include_router(sub.router)
 
     def __dispatch_route(self, request):
         """
@@ -194,30 +201,43 @@ class App:
         :param request:封装的request请求实例 详情请看Vank/core/http/request
         :return:一个视图函数
         """
-        endpoint, view_kwargs = self.route_map.match(request)
-        view_function = self.endpoint_func_dic[endpoint]
-
+        view_function, view_kwargs = self.router.match(request)
         return view_function, view_kwargs
 
-    def _finish_response(self, response, startResponse) -> List[bytes]:
+    def _finish_response(self, response, start_response) -> List[bytes]:
         """
         处理response 调用start_response设置响应状态码和响应头
         并返回一个二进制列表
         :param response: 封装的response 详情请看Vank/core/http/response
-        :param startResponse: wsgiref提供的startresponse
+        :param start_response: WSGI规范的start_response
         :return: list[bytes] 返回的body数据
         """
-        startResponse(response.status, list(response.header.items()))
+        start_response(response.status, list(response.header.items()))
         return [response.data]
 
-    def __call__(self, environ, startResponse):
+    def __call__(self, environ, start_response):
         """
         被WSGI Server调用
         :param environ:环境变量以及请求参数等
-        :param startResponse:wsgi提供的一个function 我们需要给他设置响应码以及响应头等信息
+        :param start_response:WSGI规范的一个function 我们需要给他设置响应码以及响应头等信息
         :return:list[bytes]一个二进制列表 作为响应数据
         """
         request = req.Request(environ)
         response = self.entry_func(request)
 
-        return self._finish_response(response, startResponse)
+        return self._finish_response(response, start_response)
+
+
+class SubApplication(Base):
+    def __init__(self, name, prefix: Optional[str] = None):
+        super(SubApplication, self).__init__()
+        self.name = name
+        self.prefix = prefix
+        if self.prefix:
+            assert not self.prefix.endswith('/'), "后缀url不应以 '/'结尾"
+            assert self.prefix.startswith('/'), "前缀url应以 '/'开头"
+
+    def new_route(self, route_path: str, methods=None, **kwargs):
+        if self.prefix:
+            route_path = self.prefix + route_path
+        return super(SubApplication, self).new_route(route_path, methods, **kwargs)

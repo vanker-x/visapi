@@ -10,8 +10,7 @@ from abc import ABCMeta, abstractmethod
 
 
 class BasicConverter(metaclass=ABCMeta):
-    def __init__(self, regex):
-        self.regex = regex
+    regex = None
 
     @abstractmethod
     def convert_to_python(self, value):
@@ -34,9 +33,7 @@ class BasicConverter(metaclass=ABCMeta):
 
 # 数字转换器
 class IntConverter(BasicConverter):
-    def __init__(self):
-        regex = r"\d+"
-        super(IntConverter, self).__init__(regex)
+    regex = r"\d+"
 
     def convert_to_python(self, value):
         return int(value)
@@ -47,9 +44,7 @@ class IntConverter(BasicConverter):
 
 # 字符串转换器
 class StrConverter(BasicConverter):
-    def __init__(self):
-        regex = r'[a-zA-Z0-9]+'
-        super(StrConverter, self).__init__(regex)
+    regex = r'[^/]+'
 
     def convert_to_python(self, value):
         return str(value)
@@ -60,9 +55,7 @@ class StrConverter(BasicConverter):
 
 # 浮点数转换器
 class FloatConverter(BasicConverter):
-    def __init__(self):
-        regex = r"\d+\.\d+"
-        super(FloatConverter, self).__init__(regex)
+    regex = r"[0-9]+(.[0-9]+)?"
 
     def convert_to_python(self, value):
         return float(value)
@@ -73,9 +66,7 @@ class FloatConverter(BasicConverter):
 
 # 邮箱转换器
 class EmailConverter(BasicConverter):
-    def __init__(self):
-        regex = r'[A-Za-z0-9\u4e00-\u9fa5]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+'
-        super(EmailConverter, self).__init__(regex)
+    regex = r'[A-Za-z0-9\u4e00-\u9fa5]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+'
 
     def convert_to_python(self, value):
         return str(value)
@@ -86,12 +77,20 @@ class EmailConverter(BasicConverter):
 
 # UUID转换器
 class UUIDConverter(BasicConverter):
-    def __init__(self):
-        regex = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-        BasicConverter.__init__(self, regex)
+    regex = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 
     def convert_to_python(self, value):
         return UUID(value)
+
+    def convert_to_url(self, value):
+        return str(value)
+
+
+class PathConverter(BasicConverter):
+    regex = '.*'
+
+    def convert_to_python(self, value):
+        return str(value)
 
     def convert_to_url(self, value):
         return str(value)

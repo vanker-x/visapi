@@ -19,12 +19,4 @@ def setup_config():
 
 
 setup_config()
-
-
-def Application():
-    """
-    返回一个App实例
-    :return:
-    """
-    from .app import App
-    return App()
+from Vank.core.app import Application, SubApplication

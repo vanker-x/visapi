@@ -1,4 +1,4 @@
-# @filename: router.py
+# @filename: route.py
 # @Time:    2022/7/26-0:33
 # @Author:  Vank
 import re
@@ -8,15 +8,10 @@ from importlib import import_module
 
 class BaseRoute:
     def __init__(self, route_path: str, methods: list, endpoint: str, *args, **kwargs):
+        self.route_pattern = None
         self.route_path = route_path
         self.methods = self.__parse_methods(methods)
         self.endpoint = endpoint
-        self.prefix: str = kwargs.get('prefix')
-        if isinstance(self.prefix, str):
-            self.prefix = self.prefix.rstrip('/')
-            if not self.prefix.startswith('/'):
-                raise ValueError(f'路由前缀 "{self.prefix}" 应该以/开头而不是"{self.prefix[0]}"')
-
         self.regex_list = []
         # 源自于werkzug.routing
         self.rule_regex_pattern = re.compile(r"""
@@ -29,7 +24,7 @@ class BaseRoute:
             )?
             (?P<variable>[a-zA-Z_][a-zA-Z0-9_]*)        # 变量名字
             >
-            """, re.VERBOSE, )
+            """, re.VERBOSE)
         # 转换器类型
         self.converters = self.__load_converters()
         # 参数所对应的转换器
@@ -38,9 +33,9 @@ class BaseRoute:
         self.build_rule_regex()
 
     def __load_converters(self):
-        '''
+        """
         从setting加载转换器
-        '''
+        """
         convters_tmp = {}
         for converter_name, converter_path in conf.ROUTE_CONVERTERS.items():
             module, cls_name = converter_path.rsplit('.', maxsplit=1)
@@ -65,10 +60,10 @@ class BaseRoute:
         return self.converters.keys()
 
     def __parse_rule(self, path):
-        '''
+        """
         解析路由规则,通过regex将路由规则中的静态规则和变量规则提取出来
         :return:
-        '''
+        """
 
         if not path:
             yield None, None, None
@@ -105,34 +100,34 @@ class BaseRoute:
             yield None, None, other
 
     def build_rule_regex(self):
-        '''
+        """
         创建一条属于这条路由的正则
         :return:
-        '''
-        for path in [self.prefix, self.route_path]:
-            for converter_name, conv_args, virable_name in self.__parse_rule(path):
-                if not converter_name:
-                    if virable_name:
-                        self.regex_list.append(virable_name)
-                    continue
-                converter = self.converters.get(converter_name)
-                if not converter:
-                    raise LookupError(
-                        f'{self.endpoint}的变量类型[{converter_name}]无法解析,'
-                        f'目前支持的类型为{"/".join(self.__get_converter_list())}')
-                # 将变量名对应的转换器添加到字典中,在路由过来的时候以便转换为相应的类型
-                self.argument_converters.update({virable_name: converter})
-                self.regex_list.append(f"(?P<{virable_name}>{converter.regex})")
+        """
+        for converter_name, conv_args, virable_name in self.__parse_rule(self.route_path):
+            if not converter_name:
+                if virable_name:
+                    self.regex_list.append(virable_name)
+                continue
+            converter = self.converters.get(converter_name)
+            if not converter:
+                raise LookupError(
+                    f'{self.endpoint}的变量类型[{converter_name}]无法解析,'
+                    f'目前支持的类型为{"/".join(self.__get_converter_list())}')
+            # 将变量名对应的转换器添加到字典中,在路由过来的时候以便转换为相应的类型
+            self.argument_converters.update({virable_name: converter})
+            self.regex_list.append(f"(?P<{virable_name}>{converter.regex})")
+
         regex = f"^{''.join(self.regex_list)}$"
 
         self.route_pattern = re.compile(regex)
         print(self.route_pattern)
 
     def convert_arguments(self, **arguments):
-        '''
+        """
         将变量转换为对应的类型
         例如:将整数字符串转换为int类型
-        '''
+        """
         for arg_name, arg_value in arguments.items():
             new_value = self.argument_converters[arg_name].convert_to_python(arg_value)
             arguments.update({arg_name: new_value})
@@ -140,8 +135,8 @@ class BaseRoute:
 
 
 class Route(BaseRoute):
-    def __init__(self, route_path, methods, *args, **kwargs):
-        super(Route, self).__init__(route_path, methods, *args, **kwargs)
+    def __init__(self, route_path, methods, endpoint, *args, **kwargs):
+        super(Route, self).__init__(route_path, methods, endpoint, *args, **kwargs)
 
     def check_method(self, request_method):
         return request_method.upper() in self.methods
