@@ -11,6 +11,10 @@ from abc import ABCMeta, abstractmethod
 
 class BasicConverter(metaclass=ABCMeta):
     regex = None
+    name = ""
+
+    def __init__(self):
+        assert self.name, "必须为子类转换器配置名字 -->name"
 
     @abstractmethod
     def convert_to_python(self, value):
@@ -34,6 +38,7 @@ class BasicConverter(metaclass=ABCMeta):
 # 数字转换器
 class IntConverter(BasicConverter):
     regex = r"\d+"
+    name = 'int'
 
     def convert_to_python(self, value):
         return int(value)
@@ -45,6 +50,7 @@ class IntConverter(BasicConverter):
 # 字符串转换器
 class StrConverter(BasicConverter):
     regex = r'[^/]+'
+    name = 'str'
 
     def convert_to_python(self, value):
         return str(value)
@@ -56,6 +62,7 @@ class StrConverter(BasicConverter):
 # 浮点数转换器
 class FloatConverter(BasicConverter):
     regex = r"[0-9]+(.[0-9]+)?"
+    name = 'float'
 
     def convert_to_python(self, value):
         return float(value)
@@ -67,6 +74,7 @@ class FloatConverter(BasicConverter):
 # 邮箱转换器
 class EmailConverter(BasicConverter):
     regex = r'[A-Za-z0-9\u4e00-\u9fa5]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+'
+    name = 'email'
 
     def convert_to_python(self, value):
         return str(value)
@@ -78,6 +86,7 @@ class EmailConverter(BasicConverter):
 # UUID转换器
 class UUIDConverter(BasicConverter):
     regex = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+    name = 'uuid'
 
     def convert_to_python(self, value):
         return UUID(value)
@@ -88,6 +97,7 @@ class UUIDConverter(BasicConverter):
 
 class PathConverter(BasicConverter):
     regex = '.*'
+    name = 'path'
 
     def convert_to_python(self, value):
         return str(value)

@@ -23,6 +23,7 @@ class View:
          return Response
 
     """
+    __singleton = None
 
     @cached_property
     def get_view_methods(self):
@@ -45,6 +46,15 @@ class View:
     @property
     def __name__(self):
         return self.__class__.__name__
+
+    def __eq__(self, other):
+        return self == other
+
+    def __new__(cls, *args, **kwargs):
+        if cls.__singleton is None:
+            obj = super().__new__(cls)
+            cls.__singleton = obj
+        return cls.__singleton
 
 
 class MiddlewareView(View):

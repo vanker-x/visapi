@@ -1,9 +1,11 @@
-import json
-from urllib.parse import unquote_plus
-from http import cookies
-from functools import cached_property
 import cgi
+import json
+from http import cookies
+from urllib.parse import unquote_plus
+from functools import cached_property
 
+from Vank.core.config import conf
+from Vank.utils.parsers import MultiPartParser
 
 class RequestMeta:
     def __init__(self, environ: dict):
@@ -23,7 +25,7 @@ class BaseRequest:
         获取请求路径
         :return:
         """
-        path_info = self.environ.get('PATH_INFO', '')
+        path_info = self.environ.get('PATH_INFO', '/')
         return unquote_plus(path_info, self.charset, 'replace')
 
     @cached_property
@@ -51,7 +53,7 @@ class BaseRequest:
         return self.environ.get('wsgi.input').read(self.content_length)
 
     @cached_property
-    def data(self):
+    def json(self):
         """
         解析body
         :return:
@@ -74,7 +76,10 @@ class BaseRequest:
             return {}
 
         content_type = self.content_type
+
         if content_type == 'multipart/form-data':
+            parser = MultiPartParser(self.content_type, self.content_params, self.stream)
+            parser.run()
             return
 
         elif content_type == 'application/x-www-form-urlencoded':
@@ -88,9 +93,7 @@ class BaseRequest:
         获取charset
         :return:
         """
-        if 'charset' in self.content_params:
-            return self.content_params.get('charset')
-        return 'utf-8'
+        return self.content_params.get('charset', 'utf-8')
 
     @cached_property
     def content_length(self):

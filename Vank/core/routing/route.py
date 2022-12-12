@@ -4,6 +4,7 @@
 import re
 from Vank.core.config import conf
 from importlib import import_module
+from Vank.core import exceptions
 
 
 class BaseRoute:
@@ -121,7 +122,8 @@ class BaseRoute:
         regex = f"^{''.join(self.regex_list)}$"
 
         self.route_pattern = re.compile(regex)
-        print(self.route_pattern)
+        # print(self.route_pattern)
+        # print(self.endpoint)
 
     def convert_arguments(self, **arguments):
         """
@@ -140,3 +142,30 @@ class Route(BaseRoute):
 
     def check_method(self, request_method):
         return request_method.upper() in self.methods
+
+    def url_for(self, endpoint: str, **arguments):
+        # 根据endpoint名字反向转换为url
+        if not endpoint == self.endpoint or not arguments.keys() == self.argument_converters.keys():
+            raise exceptions.UrlForNotFound(endpoint,**arguments)
+        route_path = self.route_path
+        # 将参数转换为url
+        # /<int:hello> ==>url_for(xxx,hello=1)==>/1
+        for key, value in arguments.items():
+            converter = self.argument_converters.get(key)
+            value = converter.convert_to_url(value)
+            route_path = route_path.replace(f'<{converter.name}:{key}>', value)
+        return route_path
+
+    def __str__(self):
+        return '<{cls_name}>:{regex} <==> {endpoint}'.format(
+            cls_name=self.__class__.__name__,
+            regex=self.route_pattern,
+            endpoint=self.endpoint
+        )
+
+    def __repr__(self):
+        return '<{cls_name}>:{regex} <==> {endpoint}'.format(
+            cls_name=self.__class__.__name__,
+            regex=self.route_pattern,
+            endpoint=self.endpoint
+        )

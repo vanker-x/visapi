@@ -4,6 +4,11 @@
 from Vank.core.http import status
 
 
+class UrlForNotFound(Exception):
+    def __init__(self, endpoint, **arguments):
+        super(UrlForNotFound, self).__init__(f'url_for未找到对应的路径 <{endpoint}><==>{"".join(arguments.keys())}')
+
+
 class NotFoundException(Exception):
     """资源未找到错误"""
 
