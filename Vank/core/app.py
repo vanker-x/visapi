@@ -245,6 +245,8 @@ class Application(Base):
         """
         request = req.Request(environ)
         response = self.entry_func(request)
+        # 关闭request的资源
+        request.close()
 
         return self._finish_response(response, start_response)
 
