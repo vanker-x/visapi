@@ -39,7 +39,7 @@ class Router:
                 continue
             # 判断请求方法是否允许
             if not route.check_method(request.method):
-                raise exceptions.MethodNotAllowedException(f'{request.method.upper()}方法不被允许')
+                raise exceptions.MethodNotAllowedException(f'{request.method.upper()}方法不被允许', allow=route.methods)
             # 获取endpoint和类型转换后的参数
             endpoint, arguments = route.endpoint, route.convert_arguments(**res.groupdict())
             view_function = self.endpoint_func_dic.get(endpoint)

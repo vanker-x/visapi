@@ -14,6 +14,10 @@ class NotFoundException(Exception):
 
 
 class MethodNotAllowedException(Exception):
+    def __init__(self, msg, allow, *args, **kwargs):
+        self.allow = allow
+        super(MethodNotAllowedException, self).__init__(msg, *args, **kwargs)
+
     """请求方法不允许错误"""
 
 

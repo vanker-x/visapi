@@ -106,6 +106,8 @@ class Application(Base):
         self.__handle_view_middlewares = []
         # 请求的入口函数
         self.entry_func = None
+        # 子应用列表
+        self.sub_applications = {}
         self._setup()
 
     def _setup(self):
@@ -214,7 +216,12 @@ class Application(Base):
             sub = import_from_str(sub)
         if not isinstance(sub, SubApplication):
             raise TypeError(f"参数 sub类型不应该为{type(sub)}")
-        self.router.include_router(sub.router)
+        if sub.name in self.sub_applications.keys():
+            raise ValueError(f'挂载子应用失败 {sub}:不能出现重复的子应用名称 <{sub.name}>')
+
+        self.router.include_router(sub.router)  # 将子应用的路由包含到主路由中
+        sub.root = self  # 对子应用进行绑定
+        self.sub_applications[sub.name] = sub
 
     def __dispatch_route(self, request):
         """
@@ -233,8 +240,8 @@ class Application(Base):
         :param start_response: WSGI规范的start_response
         :return: list[bytes] 返回的body数据
         """
-        start_response(response.status, list(response.header.items()))
-        return [response.data]
+        start_response(response.status, list(response.headers.items()))
+        return response
 
     def __call__(self, environ, start_response) -> List[bytes]:
         """
@@ -250,6 +257,9 @@ class Application(Base):
 
         return self._finish_response(response, start_response)
 
+    def url_for(self, endpoint, **kwargs):
+        return self.router.url_for(endpoint, **kwargs)
+
 
 class SubApplication(Base):
     def __init__(self, name, prefix: Optional[str] = None):
@@ -259,9 +269,15 @@ class SubApplication(Base):
         if self.prefix:
             assert not self.prefix.endswith('/'), "url前缀不应以 '/'结尾"
             assert self.prefix.startswith('/'), "url前缀应以 '/'开头"
+        self.root: "Application" = None
 
     def new_route(self, route_path: str, methods=None, **kwargs):
         if self.prefix:
             assert route_path.startswith("/"), f'子应用{self.name}视图的路由"{route_path}"应该以/开头'
             route_path = self.prefix + route_path
         return super(SubApplication, self).new_route(route_path, methods, **kwargs)
+
+    def url_for(self, endpoint, **kwargs):
+        if not isinstance(self.root, Application):
+            raise TypeError(f'url_for失败,root的类型应为{type(Application).__name__} 你忘记挂载了吗?')
+        return self.root.url_for(endpoint, **kwargs)

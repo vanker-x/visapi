@@ -1,7 +1,10 @@
 from Vank.core.http import HTTP_Status
-from Vank.core.http.response import Response
+from Vank.core.http import response
 from Vank.core.exceptions import *
 from Vank.utils.exception import get_exception_reason
+from logging import getLogger
+
+logger = getLogger()
 
 
 def conv_exc_to_response(get_response_func, error_handler):
@@ -21,29 +24,21 @@ def conv_exc_to_response(get_response_func, error_handler):
     return inner
 
 
-def default_handler(request, exec):
+def default_handler(request, exc):
     """
     错误处理器 根据对应的错误返回对应的Response 如果未找到对应错误 默认返回 Response 500
     :param request: request对象
-    :param exec: Exception对象
+    :param exc: Exception对象
     :return: Response
     """
-    if isinstance(exec, NotFoundException):
-        errors = {
-            'error': get_exception_reason(exec)
-        }
-        return Response(errors, status=HTTP_Status.HTTP_404_NOT_FOUND)
+    logger.error("", exc_info=exc)
+    if isinstance(exc, NotFoundException):
+        return response.Response404()
 
-    if isinstance(exec, MethodNotAllowedException):
-        errors = {
-            'error': get_exception_reason(exec)
-        }
-        return Response(errors, status=HTTP_Status.HTTP_405_METHOD_NOT_ALLOWED)
+    if isinstance(exc, MethodNotAllowedException):
+        return response.Response405(exc.allow)
 
-    if isinstance(exec, PermissionDeniedException):
-        errors = {
-            'error': get_exception_reason(exec)
-        }
-        return Response(errors, status=HTTP_Status.HTTP_403_FORBIDDEN)
+    if isinstance(exc, PermissionDeniedException):
+        return response.Response403()
 
-    return Response({'error': get_exception_reason(exec)}, status=HTTP_Status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return response.Response500()
