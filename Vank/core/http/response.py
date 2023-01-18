@@ -4,6 +4,7 @@ import json
 from urllib.parse import quote
 from mimetypes import guess_type
 from email.utils import formatdate
+from http.cookies import SimpleCookie
 from typing import Union, Optional, Any
 from Vank.core.config import conf
 from Vank.core.http import http_status_dict
@@ -27,6 +28,7 @@ class BaseResponse:
         self._body = None
         self._raw_headers = headers
         self._headers = None
+        self._cookies = None
 
     @property
     def body(self):
@@ -75,6 +77,65 @@ class BaseResponse:
 
     def __iter__(self):
         yield from [self.body]
+
+    def add_cookie(self,
+                   key: str,
+                   value: str = "",
+                   max_age=None,
+                   expires=None,
+                   path: str = "/",
+                   domain=None,
+                   secure=False,
+                   httponly=False,
+                   same_site=None
+                   ):
+        # 当max_age 和expires同时提供时 绝大多数浏览器除了IE会将expires忽略
+        # 换而言之就是expires会失效
+        self.cookies[key] = value
+        cookie = self.cookies[key]
+        if max_age:
+            cookie['max-age'] = max_age
+        if expires:
+            cookie['expires'] = expires
+        if path:
+            cookie['path'] = path
+        if domain:
+            cookie['domain'] = domain
+        if secure:
+            cookie['secure'] = True
+        if httponly:
+            cookie['httponly'] = True
+        if same_site:
+            assert same_site in ["lax", "none", "strict"], 'same_site的值必须为 "lax", "none", "strict"'
+            cookie['samesite'] = same_site
+        # 默认的output的header参数是”Set-Cookie:“
+        # 我们只需要后面的值而不需要”Set-Cookie:“
+        # 所以应该将header设置为空
+        self.headers.add('Set-Cookie', cookie.output(header=""))
+
+    def delete_cookie(self,
+                      key: str,
+                      path: str = "/",
+                      domain=None,
+                      secure: bool = False,
+                      httponly: bool = False,
+                      same_site=None):
+        self.add_cookie(
+            key,
+            max_age=0,
+            expires="Thu, 01 Jan 1970 00:00:00 GMT",  # 设置此值可以将cookie删除
+            path=path,
+            domain=domain,
+            secure=secure,
+            httponly=httponly,
+            same_site=same_site
+        )
+
+    @property
+    def cookies(self):
+        if getattr(self, '_cookies') is None:
+            self._cookies = SimpleCookie()
+        return self._cookies
 
 
 class Response(BaseResponse):
@@ -179,11 +240,12 @@ class ResponseFile(BaseResponse):
         stat = os.stat(self.filepath)
         # 根据统计信息的st_size 可以获取到文件的长度
         content_length = stat.st_size
+        # 获取最后修改时间
         last_modified = formatdate(stat.st_mtime, usegmt=True)
         if self.filename:
             # attachment 和 inline 可以控制浏览器的行为 attachment 是作为附件下载 而 inline 是作为普通网页取浏览
             disposition_type = 'attachment' if self.as_attachment else 'inline'
-            # 这里需要解决非ascii码的问题
+            # 这里需要解决非ascii编码的问题以符合URL规范
             if quote(self.filename) == self.filename:
                 content_disposition = f'{disposition_type}; filename="{self.filename}"'
             else:
@@ -228,7 +290,7 @@ class ResponseRedirect(BaseResponse):
 class ResponseJson(BaseResponse):
     media_type = f'application/json'
 
-    def __init__(self, content:Any, *args, **kwargs):
+    def __init__(self, content: Any, *args, **kwargs):
         content = json.dumps(
             content,
             allow_nan=False,

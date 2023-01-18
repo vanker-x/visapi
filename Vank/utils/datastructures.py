@@ -111,3 +111,85 @@ class Headers:
     def __contains__(self, key):
         res = [item_key for item_key, value in self.items() if item_key.lower() == key.lower()]
         return any(res)
+
+
+class Session:
+    def __init__(self, session=None):
+        self._session = session or {}
+        self._is_changed = False  # session是否修改的标志 SessionMiddleware的handle_response会用到
+
+    def __getitem__(self, key):
+        if key in self._session.keys():
+            return self._session[key]
+        raise KeyError(f'session key {key}不存在')
+
+    def __delitem__(self, key):
+        if key in self.keys():
+            del self._session[key]
+            self._is_changed = True
+        else:
+            raise KeyError(f'无法删除 session key {key}不存在')
+
+    def __setitem__(self, key, value):
+        self._session[key] = value
+        self._is_changed = True
+
+    def __bool__(self):
+        return bool(self._session)
+
+    def get(self, key, default=None):
+        return self._session.get(key, default)
+
+    def add(self, key, value):
+        self._session[key] = value
+        self._is_changed = True
+
+    def keys(self):
+        return self._session.keys()
+
+    def values(self):
+        return self._session.values()
+
+    def items(self):
+        return self._session.items()
+
+    def pop(self, key, default=None):
+        if key in self.keys():
+            value = self._session.pop(key)
+            self._is_changed = True
+            return value
+        else:
+            return default
+
+    def setdefault(self, key, value):
+        if key in self.keys():
+            return self._session[key]
+        else:
+            self._session[key] = value
+            self._is_changed = True
+            return value
+
+    def update(self, dict_obj: dict):
+        self._session.update(dict_obj)
+        self._is_changed = True
+
+    def clear(self):
+        self._session = {}
+        self._is_changed = True
+
+    def delete(self, key):
+        del self[key]
+
+    @property
+    def raw(self):
+        return self._session
+
+    @property
+    def is_changed(self):
+        return self._is_changed
+
+    def __str__(self):
+        return f'<{self.__class__.__name__}>:{self.items()}'
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__}>:{self.items()}'
