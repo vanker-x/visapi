@@ -3,7 +3,7 @@ from http import cookies
 from urllib.parse import unquote_plus, parse_qsl
 from Vank.core.config import conf
 from Vank.utils.parsers import MultiPartParser, FormParser
-from Vank.utils.datastructures import Form
+from Vank.utils.datastructures import Form, Headers
 from multipart.multipart import parse_options_header
 
 
@@ -25,6 +25,14 @@ class BaseRequest:
         self._path = None
         self._stream = None
         self._method = None
+        self._headers = None
+
+    @property
+    def headers(self):
+        if getattr(self, '_headers') is None:
+            raw_headers = parse_headers(environ=self.environ)
+            self._headers = Headers(raw_headers)
+        return self._headers
 
     @property
     def path(self):
@@ -44,7 +52,7 @@ class BaseRequest:
         :return:
         """
         if getattr(self, '_content_params') is None:
-            self._content_params = parse_options_header(self.environ.get('CONTENT_TYPE', ''))[1]
+            self._content_params = parse_options_header(self.headers.get('CONTENT_TYPE', ''))[1]
 
         return self._content_params
 
@@ -55,7 +63,7 @@ class BaseRequest:
         :return:
         """
         if getattr(self, '_content_type') is None:
-            self._content_type = parse_options_header(self.environ.get('CONTENT_TYPE', ''))[0].decode()
+            self._content_type = parse_options_header(self.headers.get('CONTENT_TYPE', ''))[0].decode()
         return self._content_type
 
     @property
@@ -116,13 +124,13 @@ class BaseRequest:
         :return:
         """
         if not hasattr(self, '_content_length'):
-            content_length = self.environ.get('CONTENT_LENGTH', 0)
+            content_length = self.headers.get('CONTENT_LENGTH', 0)
             try:
                 content_length = int(content_length)
-            except Exception as e:
+            except Exception as e:  # noqa
                 content_length = 0
             setattr(self, '_content_length', content_length)
-        return self._content_length
+        return self._content_length  # noqa
 
     @property
     def method(self):
@@ -149,7 +157,7 @@ class BaseRequest:
 
             setattr(self, '_param', {k: v for k, v in qs})
 
-        return self._param
+        return self._param  # noqa
 
     @property
     def cookies(self):
@@ -158,7 +166,7 @@ class BaseRequest:
         :return:
         """
         cookie_dict = {}
-        for cookie in self.environ.get('HTTP_COOKIE', '').split(";"):
+        for cookie in self.headers.get('COOKIE', '').split(";"):
             if "=" in cookie:
                 key, value = cookie.split("=", 1)
             else:
@@ -177,3 +185,20 @@ class BaseRequest:
 class Request(BaseRequest):
     def __init__(self, environ: dict):
         super(Request, self).__init__(environ)
+
+
+def parse_headers(environ: dict) -> dict:
+    """
+    解析HTTP头
+    :param environ: WSGI environ
+    :return: dict
+    """
+    headers = {}
+    for header_name, header_value in environ.items():
+        # 判断是否以HTTP_开头
+        if header_name.startswith('HTTP_'):
+            headers[header_name.split('HTTP_', 1)[-1]] = header_value
+        elif header_name in ['CONTENT_TYPE', 'CONTENT_LENGTH']:
+            headers[header_name] = header_value
+
+    return headers

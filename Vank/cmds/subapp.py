@@ -16,9 +16,11 @@ from Vank.core import SubApplication
 # 在此编码
 
 """
+init_template = """"""
 subapp_files = {
     'control.py': control_template,
-    'views.py': views_template
+    'views.py': views_template,
+    '__init__.py': init_template
 }
 
 
