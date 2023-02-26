@@ -30,27 +30,55 @@ MIDDLEWARES = [
 
 # 错误处理器
 ERROR_HANDLER = 'Vank.core.handlers.exception.default_handler'
+
 # 静态文件URL
 STATIC_URL = '/static/'
+
+#静态文件存放路径
+STATIC_PATH = PROJECT_BASE_DIR / 'statics'
+
 # 热重载
 AUTO_RELOAD = True
+
 # 热重载检测间隔
 AUTO_RELOAD_INTERVAL = 1
 
 AUTO_RELOAD_SPEC_SUFFIX = []
 
 AUTO_RELOAD_IGNORE_SUFFIX = []
+
 # 主机地址
 DEFAULT_HOST = '127.0.0.1'
+
 # 端口号
 DEFAULT_PORT = 5000
+
 # 编码
 DEFAULT_CHARSET = 'utf-8'
+
 # Session的Cookie名称
 SESSION_COOKIE_NAME = 'sessionid'
+
+# Session的Cookie路径
+SESSION_COOKIE_PATH = '/'
+
 # Session的Cookie有效时间
 SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 
+# Session的Cookie过期时间
+SESSION_COOKIE_EXPIRES = SESSION_COOKIE_MAX_AGE
+
+# Session的Cookie是否HTTP ONLY
+SESSION_COOKIE_HTTP_ONLY = False
+
+# lax strict none
+SESSION_COOKIE_SAME_SITE = 'lax'
+
+# SECURE
+SESSION_COOKIE_SECURE = False
+
+#域
+SESSION_COOKIE_DOMAIN = None
 """
 main_template = """
 from Vank.core import Application

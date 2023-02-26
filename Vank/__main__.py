@@ -3,8 +3,9 @@
 # @Author  : Vank
 # @Project : Vank
 import os
-import pkgutil
 import sys
+import pkgutil
+from pathlib import Path
 from difflib import get_close_matches
 from Vank.utils.cmd import BaseCommand
 from Vank.utils.load_module import import_from_str
@@ -36,7 +37,7 @@ class MainCommand(BaseCommand):
 
     def find_commands(self):
         cmds = {}
-        builtin_cmds_path = os.path.join('Vank', 'cmds')
+        builtin_cmds_path = Path(__file__).parent.joinpath('cmds').resolve()
         for module_finder, name, is_package in pkgutil.iter_modules([builtin_cmds_path]):
             if is_package:
                 continue

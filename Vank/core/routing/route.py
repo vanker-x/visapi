@@ -2,6 +2,7 @@
 # @Time:    2022/7/26-0:33
 # @Author:  Vank
 import re
+from urllib.parse import quote
 from Vank.core.config import conf
 from importlib import import_module
 from Vank.core import exceptions
@@ -144,17 +145,23 @@ class Route(BaseRoute):
         return request_method.upper() in self.methods
 
     def url_for(self, endpoint: str, **arguments):
-        # 根据endpoint名字反向转换为url
-        if not endpoint == self.endpoint or not arguments.keys() == self.argument_converters.keys():
-            raise exceptions.UrlForNotFound(endpoint,**arguments)
+        # 根据endpoint名字反向转换为url 如果有其他关键字参数那么会将它们转换为查询参数
+        if not endpoint == self.endpoint or not set(arguments.keys()).issuperset(set(self.argument_converters.keys())):
+            raise exceptions.UrlForNotFound(endpoint, **arguments)
         route_path = self.route_path
         # 将参数转换为url
         # /<int:hello> ==>url_for(xxx,hello=1)==>/1
-        for key, value in arguments.items():
-            converter = self.argument_converters.get(key)
-            value = converter.convert_to_url(value)
+        for key, converter in self.argument_converters.keys():
+            value = converter.convert_to_url(arguments.pop(key))
             route_path = route_path.replace(f'<{converter.name}:{key}>', value)
-        return route_path
+        # 处理剩余的关键字参数
+        query_args = "&".join([f"{key}={value}" for key, value in arguments.items()])
+        # 如果有查询参数那么进行拼接
+        if query_args:
+            route_path = route_path + f"?{query_args}"
+        # 为了解决URL规范问题需要对route_path进行quote
+        # safe参数指的是不对safe的值进行转换
+        return quote(route_path, safe="/#%[]=:;$&()+,!?*@'~")
 
     def __str__(self):
         return '<{cls_name}>:{regex} <==> {endpoint}'.format(
