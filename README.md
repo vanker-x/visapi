@@ -17,3 +17,7 @@ python -m Vank init -n mysite
 cd mysite
 python main.py
 ```
+
+ 
+***
+[技术文档](http://docs.bestvank.cn/)
