@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = "Vank"
-version = "0.1.0"
+version = "1.0.0"
 authors = [
     { name = "WanKe", email = "852003793@qq.com" },
 ]
@@ -23,3 +23,4 @@ dependencies = [
 ]
 [project.urls]
 "Homepage" = "https://github.com/Vank-WebFramework/Vank"
+"Documents" = "http://docs.bestvank.cn/"
