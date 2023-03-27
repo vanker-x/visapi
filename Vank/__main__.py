@@ -2,7 +2,6 @@
 # @Date    : 2023/1/24-21:27
 # @Author  : Vank
 # @Project : Vank
-import os
 import sys
 import pkgutil
 from pathlib import Path
@@ -33,16 +32,16 @@ class MainCommand(BaseCommand):
                 self.stderr.write(f'与{c}相似的命令有:\n- ')
                 self.stderr.write("\n- ".join(close_matches))
         else:
-            command_class().run(argv)
+            import_from_str(command_class)().run(argv)
 
     def find_commands(self):
         cmds = {}
-        builtin_cmds_path = Path(__file__).parent.joinpath('cmds').resolve()
+        builtin_cmds_path = Path(__file__).parent.joinpath('cmds').as_posix()
         for module_finder, name, is_package in pkgutil.iter_modules([builtin_cmds_path]):
             if is_package:
                 continue
             cmds.update(
-                {name: import_from_str(f'Vank.cmds.{name}.Command')}
+                {name: f'Vank.cmds.{name}.Command'}
             )
 
         return cmds

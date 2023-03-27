@@ -2,9 +2,11 @@
 # @Date    : 2023/1/27-1:28
 # @Author  : Vank
 # @Project : Vank
+import hashlib
 import sys
 import os.path
-from secrets import choice
+import time
+
 from Vank.utils.cmd import BaseCommand
 
 settings_template = """
@@ -12,7 +14,7 @@ from pathlib import Path
 
 PROJECT_BASE_DIR = Path(__file__).parent
 # 密钥
-SECRET_KEY = '{secret_key}'
+SECRET_KEY = '%(secret)s'
 
 # 含参数路由转换器
 ROUTE_CONVERTERS = {
@@ -34,7 +36,7 @@ ERROR_HANDLER = 'Vank.core.handlers.exception.default_handler'
 # 静态文件URL
 STATIC_URL = '/static/'
 
-#静态文件存放路径
+# 静态文件存放路径
 STATIC_PATH = PROJECT_BASE_DIR / 'statics'
 
 # 热重载
@@ -42,10 +44,6 @@ AUTO_RELOAD = True
 
 # 热重载检测间隔
 AUTO_RELOAD_INTERVAL = 1
-
-AUTO_RELOAD_SPEC_SUFFIX = []
-
-AUTO_RELOAD_IGNORE_SUFFIX = []
 
 # 主机地址
 DEFAULT_HOST = '127.0.0.1'
@@ -79,9 +77,25 @@ SESSION_COOKIE_SECURE = False
 
 #域
 SESSION_COOKIE_DOMAIN = None
+
+# 跨域允许的header
+CORS_ALLOWED_HEADERS = ["*"]
+
+# 跨域允许的method
+CORS_ALLOWED_METHODS = ["*"]
+
+# 跨域允许的origin
+CORS_ALLOWED_ORIGINS = ["*"]
+
+# 是否携带凭证
+WITH_CREDENTIALS = True
+
+# max-age
+CORS_MAX_AGE = 500
+
 """
 main_template = """
-from Vank.core import Application
+from Vank.core.app import Application
 from Vank.core.http.response import Response
 
 app = Application()
@@ -111,13 +125,18 @@ class Command(BaseCommand):
         project_name = options.name
         if project_name:
             project_dir = os.path.join(os.getcwd(), project_name)
+            if os.path.exists(project_dir):
+                self.stderr.write(f'文件夹`{project_name}`已经存在、无法创建\n')
+                sys.exit()
         else:
             project_dir = os.getcwd()
         os.makedirs(project_dir, exist_ok=True)
-
+        variables = dict(
+            secret=hashlib.sha256(str(time.time_ns()).encode()).hexdigest()
+        )
         for file_name, template in init_templates.items():
             with open(os.path.join(project_dir, file_name), 'w', encoding='utf-8') as f:
-                f.write(template)
+                f.write(template % variables)
 
     def init_arguments(self):
         self.parser.add_argument(

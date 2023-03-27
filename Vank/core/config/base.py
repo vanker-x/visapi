@@ -1,6 +1,7 @@
 # Created by Vank
 # DateTime: 2022/10/9-17:24
 # Encoding: UTF-8
+from Vank.utils.signal import configs_check
 
 
 class BaseSettings:

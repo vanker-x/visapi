@@ -3,7 +3,7 @@ import logging
 from typing import List, Optional, Union
 from Vank.core.config import conf
 from Vank.core.views.view import View
-from Vank.core.views.static import StaticView
+from Vank.core.views.static.views import StaticView
 from Vank.utils import import_from_str
 from Vank.utils.log import setup_config as setup_log_config
 from Vank.core.routing.route import Route
@@ -12,6 +12,7 @@ from Vank.core.exceptions import NonResponseException
 from Vank.core.handlers.exception import conv_exc_to_response
 from Vank.core.http import (request as req, response as rep)
 from Vank.utils.reloader import run_in_reloader
+from Vank.utils.signal import on_start_up, on_request_start, on_request_end
 
 __version__ = '0.1.0'
 logger = logging.getLogger('console')
@@ -113,7 +114,7 @@ class Application(Base):
     def _setup(self):
         # 配置logging
         setup_log_config(conf.LOGGING)
-        self.new_route(conf.STATIC_URL + '<path:fp>', endpoint='static')(StaticView)
+        self.new_route(conf.STATIC_URL + '<path:fp>', endpoint='statics')(StaticView)
         # 初始化中间件
         self.initial_middleware_stack()
 
@@ -144,7 +145,7 @@ class Application(Base):
         # 形成一个中间件栈
         self.entry_func = get_response_func
 
-    def __get_response(self, request):
+    def __get_response(self, request, *args, **kwargs):
         """
         获取response  如果任意一个中间件定义了 handle_view方法  该方法会调用调用handle_view
         如果 所有的handle_view返回值都是None 那么 请求会进入 对应的视图函数
@@ -158,11 +159,8 @@ class Application(Base):
         response = None
         # 获取到对应的处理试图和该试图所需的参数
         view_func, view_kwargs = self.__dispatch_route(request)
-
+        view_kwargs.update(kwargs)
         handle_view_middlewares = self.__handle_view_middlewares.copy()
-        # 判断视图函数是否有handle_view_middlewares 方法 有则extend到全局的handle_view_middlewares中
-        if hasattr(view_func, 'handle_view_middlewares'):
-            handle_view_middlewares.extend(getattr(view_func, 'handle_view_middlewares'))
         # 执行handle_view
         for view_handler in handle_view_middlewares:
             response = view_handler(request, view_func, **view_kwargs)
@@ -174,7 +172,7 @@ class Application(Base):
             response = view_func(request, **view_kwargs)
         # 当视图返回的不是BaseResponse 或 BaseResponse子类的实例 raise NonResponseException
         if not isinstance(response, rep.BaseResponse):
-            raise NonResponseException("服务应返回一个Response实例")
+            raise NonResponseException("服务未返回响应")
 
         return response
 
@@ -184,27 +182,24 @@ class Application(Base):
         :return: None
         """
         assert self.router.endpoint_func_dic, '未能找到至少一个以上的视图处理请求'
-
+        # 开启服务信号
+        on_start_up.emit(self)
         # 判断是否使用热重载
         if conf.AUTO_RELOAD:
             run_in_reloader(
                 self._inner_run,
                 conf.AUTO_RELOAD_INTERVAL,
-                conf.AUTO_RELOAD_SPEC_SUFFIX,
-                conf.AUTO_RELOAD_IGNORE_SUFFIX
             )
         else:
             self._inner_run()
 
     def _inner_run(self):
         from wsgiref.simple_server import make_server
-        # if os.environ.get('autoreload', None):
-        #     logger.warning(f"你的服务运行于:http://{conf.DEFAULT_HOST}:{conf.DEFAULT_PORT}/"
-        #                    f"这只适用于开发环境,请勿用于生产环境;"
-        #                    f"请使用gunicorn、uwsgi等wsgi服务器启动")
-        logger.warning(f"你的服务运行于:http://{conf.DEFAULT_HOST}:{conf.DEFAULT_PORT}/"
-                       f"这只适用于开发环境,请勿用于生产环境;"
-                       f"请使用gunicorn、uwsgi等wsgi服务器启动")
+        logger.warning(
+            f"你的服务运行于:http://{conf.DEFAULT_HOST}:{conf.DEFAULT_PORT}/\n"
+            f"- 请勿用于生产环境\n"
+            f"- 版本号:{__version__}\n"
+        )
         httpd = make_server(conf.DEFAULT_HOST, conf.DEFAULT_PORT, self)
         httpd.serve_forever()
 
@@ -235,7 +230,7 @@ class Application(Base):
     def _finish_response(self, response, start_response) -> List[bytes]:
         """
         处理response 调用start_response设置响应状态码和响应头
-        并返回一个二进制列表
+        并返回一个二进制可迭代对象
         :param response: 封装的response 详情请看Vank/core/http/response
         :param start_response: WSGI规范的start_response
         :return: list[bytes] 返回的body数据
@@ -251,7 +246,11 @@ class Application(Base):
         :return:作为响应数据
         """
         request = req.Request(environ)
+        # 请求开始信号
+        on_request_start.emit(self, request=request)
         response = self.entry_func(request)
+        # 请求结束信号
+        on_request_end.emit(self, request=request, response=response)
         # 关闭request的资源
         request.close()
 

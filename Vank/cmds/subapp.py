@@ -9,7 +9,7 @@ from Vank.utils.cmd import BaseCommand
 
 control_template = """"""
 views_template = """
-from Vank.core import SubApplication
+from Vank.core.app import SubApplication
 
 {name}_sub = SubApplication('{name}')
 

@@ -1,27 +1,28 @@
 import os
 from importlib import import_module
-
+from Vank.utils.signal import configs_check
 from Vank.core.config.base import BaseSettings
-
-ENVIROMENT_VARIABLE_OF_PROJECT = 'PROJECT_SETTING'
 
 
 class Settings(BaseSettings):
     def __init__(self):
-        module = os.environ.get(ENVIROMENT_VARIABLE_OF_PROJECT, None)
-        if not module:
-            raise ModuleNotFoundError(
-                "运行失败,运行时未找到settings.py的环境变量 PROJECT_SETTING"
-                "你必须先配置settings.py文件的环境变量"
-            )
+        module = os.environ.get('PROJECT_SETTING', None)
         try:
             self.module = import_module(module)
         except:
-            raise ModuleNotFoundError('加载settings失败,你把项目中的settings.py删除了吗?')
+            raise ModuleNotFoundError(
+                f"\n运行失败,未能找到配置模块的路径环境变量(PROJECT_SETTING)\n"
+                f"当前配置路径:PROJECT_SETTING='{module}'\n"
+                f"请像下面这样添加配置模块的路径:\n"
+                f"import os\n"
+                f"os.environ['PROJECT_SETTING']='your setting module path'"
+            )
         for setting_name in dir(self.module):
             if not setting_name.isupper():
                 continue
             setattr(self, setting_name, getattr(self.module, setting_name))
+        # 检查配置
+        configs_check.emit(self)
 
 
 conf = Settings()
