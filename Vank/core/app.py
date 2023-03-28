@@ -14,7 +14,7 @@ from Vank.core.http import (request as req, response as rep)
 from Vank.utils.reloader import run_in_reloader
 from Vank.utils.signal import on_start_up, on_request_start, on_request_end
 
-__version__ = '0.1.0'
+__version__ = '1.0.1'
 logger = logging.getLogger('console')
 
 
