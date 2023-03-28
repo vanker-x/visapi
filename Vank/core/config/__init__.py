@@ -1,10 +1,18 @@
 import os
 from importlib import import_module
 from Vank.utils.signal import configs_check
-from Vank.core.config.base import BaseSettings
+from Vank.core.config import base
+
+for item in dir(base):
+    if not item.startswith('check_'):
+        continue
+    f = getattr(base, item)
+    if not callable(f):
+        continue
+    configs_check.bind(getattr(base, item))
 
 
-class Settings(BaseSettings):
+class Settings(base.BaseSettings):
     def __init__(self):
         module = os.environ.get('PROJECT_SETTING', None)
         try:

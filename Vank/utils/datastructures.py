@@ -34,15 +34,26 @@ class SpooledUploadFile:
         return f'<{self.__class__.__name__}>:{self.filename}'
 
 
-class Form:
+class ReadOnlyMultiDict:
+    """只读多值字典"""
+
     def __init__(self, *args, ):
         if args:
-            self._dict = {k: v for k, v in args[0]}
+            self._list = [(k, v) for k, v in args[0]]
+            self._dict = dict(self._list)
         else:
+            self._list = []
             self._dict = {}
 
     def get(self, key, default=None):
         return self._dict.get(key, default)
+
+    def get_list(self, key, default=None):
+        temp = []
+        for k, v in self._list:
+            if k == key:
+                temp.append(v)
+        return temp or default
 
     def keys(self):
         return self._dict.keys()
@@ -53,14 +64,31 @@ class Form:
     def items(self):
         return self._dict.items()
 
-    def close(self):
-        [item.close() for item in self.values() if isinstance(item, SpooledUploadFile)]
+    def __getitem__(self, item):
+        return self._dict[item]
+
+    def __contains__(self, item):
+        return item in self.keys()
 
     def __str__(self):
         return f"<{self.__class__.__name__}>:({self.items()})"
 
     def __repr__(self):
         return f"<{self.__class__.__name__}>:({self.items()})"
+
+
+class Form(ReadOnlyMultiDict):
+    """
+    form表单
+    """
+
+    def close(self):
+        [item.close() for item in self.values() if isinstance(item, SpooledUploadFile)]
+
+
+class QueryString(ReadOnlyMultiDict):
+    """查询参数"""
+    pass
 
 
 class Headers:
@@ -107,6 +135,12 @@ class Headers:
                 self._list[index] = (key.encode('latin-1'), value.encode('latin-1'))
         else:
             self.setdefault(key, value)
+
+    def remove(self, key):
+        # 使用[:]可以创建一个新的对象
+        for idx, item in enumerate(self._list[:]):
+            if item[0].decode('latin-1').lower() == key.lower():
+                self._list.pop(idx)
 
     def __contains__(self, key):
         res = [item_key for item_key, value in self.items() if item_key.lower() == key.lower()]

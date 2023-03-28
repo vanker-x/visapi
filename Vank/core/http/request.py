@@ -3,7 +3,7 @@ from http import cookies
 from urllib.parse import unquote_plus, parse_qsl
 from Vank.core.config import conf
 from Vank.utils.parsers import MultiPartParser, FormParser
-from Vank.utils.datastructures import Form, Headers
+from Vank.utils.datastructures import Form, Headers, QueryString
 from multipart.multipart import parse_options_header
 
 
@@ -154,8 +154,7 @@ class BaseRequest:
         if not hasattr(self, '_param'):
             qs = self.environ.get('QUERY_STRING', '').encode('latin-1').decode('utf-8')
             qs = parse_qsl(qs, keep_blank_values=True)
-
-            setattr(self, '_param', {k: v for k, v in qs})
+            setattr(self, '_param', QueryString(qs))
 
         return self._param  # noqa
 
