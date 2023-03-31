@@ -1,12 +1,6 @@
 import inspect
 
 
-class InspectError(Exception):
-    """
-    检查错误
-    """
-
-
 def get_func_parameters(func):
     """
     获取函数的所有所需参数

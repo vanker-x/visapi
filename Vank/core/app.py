@@ -1,20 +1,21 @@
 import inspect
 import logging
-from typing import List, Optional, Union
+import typing as t
 from Vank.core.config import conf
 from Vank.core.views.view import View
-from Vank.core.views.static.views import StaticView
 from Vank.utils import import_from_str
-from Vank.utils.log import setup_config as setup_log_config
+from Vank.__version__ import __version__
 from Vank.core.routing.route import Route
 from Vank.core.routing.router import Router
-from Vank.core.exceptions import NonResponseException
-from Vank.core.handlers.exception import conv_exc_to_response
-from Vank.core.http import (request as req, response as rep)
+from wsgiref.simple_server import make_server
 from Vank.utils.reloader import run_in_reloader
+from Vank.core.views.static.views import StaticView
+from Vank.core.exceptions import NonResponseException
+from Vank.utils.log import setup_config as setup_log_config
+from Vank.core.http import (request as req, response as rep)
+from Vank.core.handlers.exception import conv_exc_to_response
 from Vank.utils.signal import on_start_up, on_request_start, on_request_end
 
-__version__ = '1.0.1'
 logger = logging.getLogger('console')
 
 
@@ -116,9 +117,9 @@ class Application(Base):
         setup_log_config(conf.LOGGING)
         self.new_route(conf.STATIC_URL + '<path:fp>', endpoint='statics')(StaticView)
         # 初始化中间件
-        self.initial_middleware_stack()
+        self.initialize_middleware_stack()
 
-    def initial_middleware_stack(self):
+    def initialize_middleware_stack(self):
         """
         初始化中间件 接收到的请求将会传入self.middlewares进行处理
         当配置文件中没有中间件时 self.middlewares 为 conv_exc_to_response
@@ -157,7 +158,7 @@ class Application(Base):
         :return:
         """
         response = None
-        # 获取到对应的处理试图和该试图所需的参数
+        # 获取到对应的处理视图和该视图所需的参数
         view_func, view_kwargs = self.__dispatch_route(request)
         view_kwargs.update(kwargs)
         handle_view_middlewares = self.__handle_view_middlewares.copy()
@@ -172,7 +173,7 @@ class Application(Base):
             response = view_func(request, **view_kwargs)
         # 当视图返回的不是BaseResponse 或 BaseResponse子类的实例 raise NonResponseException
         if not isinstance(response, rep.BaseResponse):
-            raise NonResponseException("服务未返回响应")
+            raise NonResponseException(f"{view_func}视图没有返回正确的响应")
 
         return response
 
@@ -194,7 +195,6 @@ class Application(Base):
             self._inner_run()
 
     def _inner_run(self):
-        from wsgiref.simple_server import make_server
         logger.warning(
             f"你的服务运行于:http://{conf.DEFAULT_HOST}:{conf.DEFAULT_PORT}/\n"
             f"- 请勿用于生产环境\n"
@@ -203,7 +203,7 @@ class Application(Base):
         httpd = make_server(conf.DEFAULT_HOST, conf.DEFAULT_PORT, self)
         httpd.serve_forever()
 
-    def include(self, sub: Union[str, "SubApplication"]):
+    def include(self, sub: t.Union[str, "SubApplication"]):
         """
         将子应用挂载到Application中,类似Flask的register_blueprint
         """
@@ -227,7 +227,7 @@ class Application(Base):
         view_function, view_kwargs = self.router.match(request)
         return view_function, view_kwargs
 
-    def _finish_response(self, response, start_response) -> List[bytes]:
+    def _finish_response(self, response, start_response) -> t.List[bytes]:
         """
         处理response 调用start_response设置响应状态码和响应头
         并返回一个二进制可迭代对象
@@ -238,7 +238,7 @@ class Application(Base):
         start_response(response.status, list(response.headers.items()))
         return response
 
-    def __call__(self, environ, start_response) -> List[bytes]:
+    def __call__(self, environ, start_response) -> t.List[bytes]:
         """
         被WSGI Server调用
         :param environ:环境变量以及请求参数等
@@ -261,7 +261,7 @@ class Application(Base):
 
 
 class SubApplication(Base):
-    def __init__(self, name, prefix: Optional[str] = None):
+    def __init__(self, name, prefix: t.Optional[str] = None):
         super(SubApplication, self).__init__()
         self.name = name
         self.prefix = prefix

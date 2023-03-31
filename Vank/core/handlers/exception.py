@@ -1,10 +1,9 @@
-from Vank.core.http import HTTP_Status
+import traceback
 from Vank.core.http import response
 from Vank.core.exceptions import *
-from Vank.utils.exception import get_exception_reason
 from logging import getLogger
 
-logger = getLogger()
+logger = getLogger('server')
 
 
 def conv_exc_to_response(get_response_func, error_handler):
@@ -31,14 +30,13 @@ def default_handler(request, exc):
     :param exc: Exception对象
     :return: Response
     """
-    logger.error("", exc_info=exc)
     if isinstance(exc, NotFoundException):
-        return response.Response404()
-
-    if isinstance(exc, MethodNotAllowedException):
-        return response.Response405(exc.allow)
-
-    if isinstance(exc, PermissionDeniedException):
-        return response.Response403()
-
-    return response.Response500()
+        resp = response.Response404()
+    elif isinstance(exc, MethodNotAllowedException):
+        resp = response.Response405(exc.allow)
+    elif isinstance(exc, PermissionDeniedException):
+        resp = response.Response403()
+    else:
+        resp = response.Response500()
+    logger.error("Error - ", exc_info=exc)
+    return resp

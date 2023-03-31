@@ -2,10 +2,6 @@
 # @Date    : 2023/1/24-22:25
 # @Author  : Vank
 # @Project : Vank
-# @FileName: base.py
-# @Date    : 2023/1/24-22:23
-# @Author  : Vank
-# @Project : Vank
 import sys
 from argparse import ArgumentParser
 

@@ -1,8 +1,6 @@
 # @filename: exceptions.py
 # @Time:    2022/7/26-1:40
 # @Author:  Vank
-from Vank.core.http import status
-
 
 class UrlForNotFound(Exception):
     def __init__(self, endpoint, **arguments):

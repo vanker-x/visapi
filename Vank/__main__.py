@@ -32,7 +32,7 @@ class MainCommand(BaseCommand):
                 self.stderr.write(f'与{c}相似的命令有:\n- ')
                 self.stderr.write("\n- ".join(close_matches))
         else:
-            import_from_str(command_class)().run(argv)
+            command_class().run(argv)
 
     def find_commands(self):
         cmds = {}
@@ -41,7 +41,7 @@ class MainCommand(BaseCommand):
             if is_package:
                 continue
             cmds.update(
-                {name: f'Vank.cmds.{name}.Command'}
+                {name: import_from_str(f'Vank.cmds.{name}.Command')}
             )
 
         return cmds
