@@ -24,3 +24,6 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/Vank-WebFramework/Vank"
 "Documents" = "http://docs.bestvank.cn/"
+
+[project.entry-points.console_scripts]
+vank = "Vank.__main__:entry_point"

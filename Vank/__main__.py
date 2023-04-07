@@ -36,12 +36,12 @@ class MainCommand(BaseCommand):
 
     def find_commands(self):
         cmds = {}
-        builtin_cmds_path = Path(__file__).parent.joinpath('cmds').as_posix()
+        builtin_cmds_path = Path(__file__).parent.joinpath('cli').as_posix()
         for module_finder, name, is_package in pkgutil.iter_modules([builtin_cmds_path]):
             if is_package:
                 continue
             cmds.update(
-                {name: import_from_str(f'Vank.cmds.{name}.Command')}
+                {name: import_from_str(f'Vank.cli.{name}.Command')}
             )
 
         return cmds
@@ -58,4 +58,13 @@ class MainCommand(BaseCommand):
         self.stdout.write(f'\n\n{self.epilog}')
 
 
-MainCommand().run(sys.argv)
+def entry_point():
+    """
+    此函数主要作用是为了在分发包时的console_scripts提供入口点
+    """
+    main = MainCommand()
+    sys.exit(main.run(sys.argv))
+
+
+if __name__ == '__main__':
+    entry_point()
