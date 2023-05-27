@@ -7,7 +7,7 @@ import sys
 import os.path
 import time
 
-from Vank.utils.cmd import BaseCommand
+from Vank.utils.cli import BaseCommand
 
 settings_template = """
 from pathlib import Path
@@ -18,26 +18,33 @@ SECRET_KEY = '%(secret)s'
 
 # 含参数路由转换器
 ROUTE_CONVERTERS = {
-    'int': 'Vank.core.routing.converters.IntConverter',
-    'float': 'Vank.core.routing.converters.FloatConverter',
-    'email': 'Vank.core.routing.converters.EmailConverter',
-    'uuid': 'Vank.core.routing.converters.UUIDConverter',
-    'path': 'Vank.core.routing.converters.PathConverter',
+    'int': 'Vank.core.routing.converters:IntConverter',
+    'float': 'Vank.core.routing.converters:FloatConverter',
+    'email': 'Vank.core.routing.converters:EmailConverter',
+    'uuid': 'Vank.core.routing.converters:UUIDConverter',
+    'path': 'Vank.core.routing.converters:PathConverter',
+    'str': 'Vank.core.routing.converters:StrConverter',
 }
 
 # 中间件
 MIDDLEWARES = [
-    'Vank.middleware.session.SessionMiddleware'
+    'Vank.middleware.session:SessionMiddleware'
 ]
 
 # 错误处理器
-ERROR_HANDLER = 'Vank.core.handlers.exception.default_handler'
+ERROR_HANDLER = 'Vank.core.handlers.exception:default_handler'
+
+# 处理静态文件(生产环境请设置为False)
+USE_STATIC = True
 
 # 静态文件URL
 STATIC_URL = '/static/'
 
 # 静态文件存放路径
 STATIC_PATH = PROJECT_BASE_DIR / 'statics'
+
+# 静态文件路由端点
+STATIC_ENDPOINT = 'static'
 
 # 热重载
 AUTO_RELOAD = True
@@ -136,7 +143,7 @@ class Command(BaseCommand):
         )
         for file_name, template in init_templates.items():
             with open(os.path.join(project_dir, file_name), 'w', encoding='utf-8') as f:
-                f.write(template % variables)
+                f.write(template.lstrip() % variables)
 
     def init_arguments(self):
         self.parser.add_argument(

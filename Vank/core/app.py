@@ -1,3 +1,4 @@
+import atexit
 import inspect
 import logging
 import typing as t
@@ -14,7 +15,7 @@ from Vank.core.exceptions import NonResponseException
 from Vank.utils.log import setup_config as setup_log_config
 from Vank.core.http import (request as req, response as rep)
 from Vank.core.handlers.exception import conv_exc_to_response
-from Vank.utils.signal import on_start_up, on_request_start, on_request_end
+from Vank.utils.signal import on_request_start, on_request_end, on_stop_down
 
 logger = logging.getLogger('console')
 
@@ -115,9 +116,12 @@ class Application(Base):
     def _setup(self):
         # 配置logging
         setup_log_config(conf.LOGGING)
-        self.new_route(conf.STATIC_URL + '<path:fp>', endpoint='statics')(StaticView)
+        if conf.USE_STATIC:
+            self.new_route(conf.STATIC_URL + '{fp:path}', endpoint=conf.STATIC_ENDPOINT)(StaticView)
         # 初始化中间件
         self.initialize_middleware_stack()
+        # 将on_stop_down信号的emit方法注册到atexit中
+        atexit.register(on_stop_down.emit, sender=self)
 
     def initialize_middleware_stack(self):
         """
@@ -183,8 +187,6 @@ class Application(Base):
         :return: None
         """
         assert self.router.endpoint_func_dic, '未能找到至少一个以上的视图处理请求'
-        # 开启服务信号
-        on_start_up.emit(self)
         # 判断是否使用热重载
         if conf.AUTO_RELOAD:
             run_in_reloader(

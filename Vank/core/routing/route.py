@@ -4,48 +4,68 @@
 import re
 from urllib.parse import quote
 from Vank.core.config import conf
-from importlib import import_module
 from Vank.core import exceptions
+from Vank.utils.load_module import import_from_str
+from functools import lru_cache
+
+# 构建路由正则
+build_route_regex_pattern = re.compile(
+    "(?P<static_route>[^{]*){(?P<variable>[a-zA-Z_][a-zA-Z0-9_]*):(?P<converter>[a-zA-Z_][a-zA-Z0-9_]*)}"
+)
+
+
+def parse_route_rule(rule):
+    start = 0
+    end = len(rule)
+    while start < end:
+        # 通过语法正则匹配出动态路由
+        res = build_route_regex_pattern.search(rule, start)
+        # 如果没有匹配出结果、说明剩余的字符串是静态的
+        if not res:
+            break
+        result_dict = res.groupdict()
+        static_route = result_dict.get("static_route")
+        variable = result_dict.get("variable")
+        converter = result_dict.get("converter")
+        if result_dict.get("static_route"):
+            yield None, static_route
+        yield converter, variable
+        start = res.end()
+    # 拼接剩余静态路由
+    if start < end:
+        legacy_route = rule[start:]
+        if '{' in legacy_route or '}' in legacy_route:
+            raise SyntaxError('错误的路由语法')
+        yield None, legacy_route
+
+
+@lru_cache(maxsize=None)
+def get_converters():
+    """
+    获取路由转换器
+    """
+    convert_dict = dict()
+    for converter_name, convert_module_path in conf.ROUTE_CONVERTERS.items():
+        if converter_name in convert_dict.keys():
+            raise ValueError(f'转换器名字不能重复:{converter_name},请修改')
+        converter_class = import_from_str(convert_module_path)
+        convert_dict[converter_name] = converter_class()
+    return convert_dict
 
 
 class BaseRoute:
     def __init__(self, route_path: str, methods: list, endpoint: str, *args, **kwargs):
-        self.route_pattern = None
-        self.route_path = route_path
-        self.methods = self.__parse_methods(methods)
-        self.endpoint = endpoint
+        self.route_pattern = None  # 解析后的路由规则
+        self.route_path = route_path  # 用户定义的路由规则
+        self.methods = self.__parse_methods(methods)  # 路由的method
+        self.endpoint = endpoint  # 端点
         self.regex_list = []
-        # 源自于werkzug.routing
-        self.rule_regex_pattern = re.compile(r"""
-            (?P<static_route>[^<]*)                           # 静态的路由 比如/123/<int:id> 那么 /123/就为静态路由
-            <
-            (?:
-                (?P<converter_name>[a-zA-Z_][a-zA-Z0-9_]*)   # 转换器名字
-                (?:\((?P<conv_args>.*?)\))?                  # 转换器参数
-                \:                                      # 分隔符 :
-            )?
-            (?P<variable>[a-zA-Z_][a-zA-Z0-9_]*)        # 变量名字
-            >
-            """, re.VERBOSE)
         # 转换器类型
-        self.converters = self.__load_converters()
+        self.converters = get_converters()
         # 参数所对应的转换器
         self.argument_converters = {}
         # 构建正则
-        self.build_rule_regex()
-
-    def __load_converters(self):
-        """
-        从setting加载转换器
-        """
-        convters_tmp = {}
-        for converter_name, converter_path in conf.ROUTE_CONVERTERS.items():
-            module, cls_name = converter_path.rsplit('.', maxsplit=1)
-            if converter_name in convters_tmp.keys():
-                raise ValueError(f'转换器名字不能重复:{converter_name},请修改')
-            convters_tmp[converter_name] = getattr(import_module(module), cls_name)()
-
-        return convters_tmp
+        self.setup()
 
     def __parse_methods(self, methods: list):
         if not methods:
@@ -61,70 +81,33 @@ class BaseRoute:
         """
         return self.converters.keys()
 
-    def __parse_rule(self, path):
-        """
-        解析路由规则,通过regex将路由规则中的静态规则和变量规则提取出来
-        :return:
-        """
-
-        if not path:
-            yield None, None, None
-            return
-
-        variable_names = set()
-        position = 0
-        end = len(path)
-        count = 0
-        while position < end:
-            res = self.rule_regex_pattern.match(path, position)
-            if not res:
-                break
-            data_dic = res.groupdict()
-            static_route = data_dic['static_route']
-            if static_route:
-                yield None, None, static_route
-            variable_name = data_dic['variable']
-            converter = data_dic['converter_name']
-            conv_args = data_dic['conv_args']
-            if not converter and variable_name:
-                raise SyntaxError(f'endpoint:[{self.endpoint}]的路由参数有误:{variable_name}必须指定类型'
-                                  f' <{"/".join(self.__get_converter_list())}:variable_name>')
-
-            if variable_name in variable_names:
-                raise LookupError(f'路由:{path}变量名:{variable_name}只能使用一次')
-            variable_names.add(variable_name)
-            yield converter, conv_args or None, variable_name
-            position = res.end()
-        if position < end:
-            other = path[position:]
-            if ">" in other or "<" in other:
-                raise SyntaxError(f"{self.endpoint}存在错误的路由:{path} 不应存在:{other}")
-            yield None, None, other
-
-    def build_rule_regex(self):
+    def setup(self):
         """
         创建一条属于这条路由的正则
         :return:
         """
-        for converter_name, conv_args, virable_name in self.__parse_rule(self.route_path):
-            if not converter_name:
-                if virable_name:
-                    self.regex_list.append(virable_name)
+        for converter_name, static_or_variable in parse_route_rule(self.route_path):
+            # 没有路由转换器,但是static_or_variable不为空、则可以判定static_or_variable为静态的路由
+            if not converter_name and static_or_variable:
+                # 需要将静态路径escape防止出现安全问题
+                # 例如 '/foo.bar' 如果直接append那么如果访问/fooobar也是能够访问到此条路由，这是不合法的
+                self.regex_list.append(re.escape(static_or_variable))
                 continue
+            # ===处理动态路由===
+            if static_or_variable in self.argument_converters.keys():
+                raise SyntaxError('路由规则中不能出现重复的关键字参数')
             converter = self.converters.get(converter_name)
             if not converter:
-                raise LookupError(
-                    f'{self.endpoint}的变量类型[{converter_name}]无法解析,'
-                    f'目前支持的类型为{"/".join(self.__get_converter_list())}')
+                raise SyntaxError(
+                    f'{self.endpoint}的变量对应转换器[{converter_name}]未找到,'
+                    f'目前支持的类型为{"、".join(self.__get_converter_list())}')
             # 将变量名对应的转换器添加到字典中,在路由过来的时候以便转换为相应的类型
-            self.argument_converters.update({virable_name: converter})
-            self.regex_list.append(f"(?P<{virable_name}>{converter.regex})")
-
+            self.argument_converters.update({static_or_variable: converter})
+            self.regex_list.append(f"(?P<{static_or_variable}>{converter.regex})")
+        # 开始拼接解析后的路由规则
         regex = f"^{''.join(self.regex_list)}$"
 
         self.route_pattern = re.compile(regex)
-        # print(self.route_pattern)
-        # print(self.endpoint)
 
     def convert_arguments(self, **arguments):
         """
@@ -145,23 +128,27 @@ class Route(BaseRoute):
         return request_method.upper() in self.methods
 
     def url_for(self, endpoint: str, **arguments):
-        # 根据endpoint名字反向转换为url 如果有其他关键字参数那么会将它们转换为查询参数
+        """
+        根据endpoint查找对应的url
+        """
+        # 根据endpoint反向构建url、并且传入的arguments必须为该路由所需的可变路由参数的超集
         if not endpoint == self.endpoint or not set(arguments.keys()).issuperset(set(self.argument_converters.keys())):
             raise exceptions.UrlForNotFound(endpoint, **arguments)
-        route_path = self.route_path
-        # 将参数转换为url
-        # /<int:hello> ==>url_for(xxx,hello=1)==>/1
-        for key, converter in self.argument_converters.keys():
-            value = converter.convert_to_url(arguments.pop(key))
-            route_path = route_path.replace(f'<{converter.name}:{key}>', value)
-        # 处理剩余的关键字参数
+        url = self.route_path
+        # 将传入的arguments替换为url、甚于的参数作为查询参数
+        for variable_name, converter in self.argument_converters.items():
+            value = converter.convert_to_url(arguments.pop(variable_name))
+            raw_rule = '{%(variable_name)s:%(converter_name)s}' % dict(
+                variable_name=variable_name,
+                converter_name=converter.name
+            )
+            url = url.replace(raw_rule, value)
         query_args = "&".join([f"{key}={value}" for key, value in arguments.items()])
-        # 如果有查询参数那么进行拼接
         if query_args:
-            route_path = route_path + f"?{query_args}"
+            url = url + f"?{query_args}"
         # 为了解决URL规范问题需要对route_path进行quote
         # safe参数指的是不对safe的值进行转换
-        return quote(route_path, safe="/#%[]=:;$&()+,!?*@'~")
+        return quote(url, safe="/#%[]=:;$&()+,!?*@'~")
 
     def __str__(self):
         return '<{cls_name}>:{regex} <==> {endpoint}'.format(

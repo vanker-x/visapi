@@ -5,7 +5,7 @@
 import os
 import sys
 
-from Vank.utils.cmd import BaseCommand
+from Vank.utils.cli import BaseCommand
 
 control_template = """"""
 views_template = """

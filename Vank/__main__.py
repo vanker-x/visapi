@@ -6,7 +6,7 @@ import sys
 import pkgutil
 from pathlib import Path
 from difflib import get_close_matches
-from Vank.utils.cmd import BaseCommand
+from Vank.utils.cli import BaseCommand
 from Vank.utils.load_module import import_from_str
 
 
@@ -41,7 +41,7 @@ class MainCommand(BaseCommand):
             if is_package:
                 continue
             cmds.update(
-                {name: import_from_str(f'Vank.cli.{name}.Command')}
+                {name: import_from_str(f'Vank.cli.{name}:Command')}
             )
 
         return cmds

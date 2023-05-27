@@ -1,6 +1,5 @@
 import typing as t
 from threading import Lock
-from functools import wraps
 
 
 class Signal:
@@ -12,7 +11,7 @@ class Signal:
         self.lock = Lock()
         self._binds: t.Dict[int, t.Callable] = {}
 
-    def bind(self, listener: t.Callable, identify: int = None, *array, **kwargs):
+    def bind(self, listener: t.Callable, identify: int = None):
         """
         绑定
         """
@@ -41,6 +40,6 @@ class Signal:
 
 
 configs_check = Signal()
-on_start_up = Signal()
+on_stop_down = Signal()
 on_request_start = Signal()
 on_request_end = Signal()

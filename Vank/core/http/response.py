@@ -18,9 +18,9 @@ class BaseResponse:
     def __init__(self,
                  content: Optional[Union[bytes, str]] = b"",
                  status: Optional[int] = None,
-                 headers=None,
-                 *args,
-                 **kwargs):
+                 headers: Optional[Union[dict, Headers]] = None,
+                 media_type: str = None,
+                 ):
         # 判断status是否传入  如果没有传入那么就设置未默认的status
         self._status = status or self.default_status
         self._charset = None
@@ -29,6 +29,7 @@ class BaseResponse:
         self._raw_headers = headers
         self._headers = None
         self._cookies = None
+        self.media_type = media_type or self.media_type
 
     @property
     def body(self):
@@ -52,8 +53,8 @@ class BaseResponse:
             if 'Content-Type' not in self._headers:
                 content_type = self.media_type
                 if content_type.startswith('text/') and 'charset' not in content_type:
-                    content_type += f'; charset={self.charset}'
-                self._headers.setdefault('Content-Type', content_type)
+                    content_type += f'{content_type}; charset={self.charset}'
+                self._headers.add('Content-Type', content_type)
             # 设置content-length
             if 'Content-Length' not in self._headers:
                 if self.body and self._status >= 200 and self._status not in (204, 304):

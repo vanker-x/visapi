@@ -1,7 +1,7 @@
 from enum import IntEnum
 
 
-class HTTP_Status(IntEnum):
+class HttpStatus(IntEnum):
     HTTP_100_CONTINUE = 100, 'Continue'
     HTTP_101_SWITCHING_PROTOCOLS = 101, 'Switching Protocols'
     HTTP_102_PROCESSING = 102, 'Processing'
@@ -84,4 +84,4 @@ class HTTP_Status(IntEnum):
         return obj
 
 
-http_status_dict = {item: item.phrase for item in HTTP_Status.__members__.values()}
+http_status_dict = {item: item.phrase for item in HttpStatus.__members__.values()}
