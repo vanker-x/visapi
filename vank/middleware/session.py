@@ -1,0 +1,64 @@
+import json
+import base64
+from http.cookies import Morsel
+from vank.core.config import conf
+from vank.core.context import request
+from vank.utils.datastructures import Session
+from vank.middleware.base import BaseMiddleware
+from itsdangerous import TimestampSigner, BadSignature
+
+
+class SessionMiddleware(BaseMiddleware):
+    def __init__(self, get_response_callable):
+        super(SessionMiddleware, self).__init__(get_response_callable)
+        self.signer = TimestampSigner(conf.SECRET_KEY)
+
+    def handle_request(self, *args, **kwargs):
+        # 获取cookie
+        signed_session_value = request.cookies.get(conf.SESSION_COOKIE_NAME, "")
+        if isinstance(signed_session_value, Morsel):
+            signed_session_value = signed_session_value.value
+        signed_session_value = signed_session_value.encode('utf-8')
+        # 使用signer进行unsign得到base64编码(base64编码可以提高传输可靠性) 然后将base64编码进行解码得到json序列
+        # 再将序列转为python object
+        try:
+            value = self.signer.unsign(signed_session_value, max_age=conf.SESSION_COOKIE_MAX_AGE)
+            session = Session(json.loads(base64.b64decode(value)))
+        except BadSignature as e:
+            # 如果unsign失败 那么实例化一个空的Session
+            session = Session()
+        setattr(request, 'session', session)
+        return None
+
+    def handle_response(self, response):
+        session: Session = getattr(request, 'session')
+        # 判断此次请求是否有session
+        # 如果有session且当前session内容为空
+        # 那么将其删除
+        if request.cookies.get(conf.SESSION_COOKIE_NAME, None) and not session:
+            response.delete_cookie(
+                conf.SESSION_COOKIE_NAME,
+                conf.SESSION_COOKIE_PATH,
+                conf.SESSION_COOKIE_DOMAIN,
+                conf.SESSION_COOKIE_SECURE,
+                conf.SESSION_COOKIE_HTTP_ONLY,
+                conf.SESSION_COOKIE_SAME_SITE,
+            )
+        # 否则判断session是否改变 如果发生改变 那么重新生成session
+        elif session.is_changed and session:
+            # 先将数据进行序列化 然后encode为utf-8 再将其编码为base64编码 然后signer进行sign
+            # base64编码可以提高传输可靠性,可以避免特殊的字符对传输的影响
+            data = base64.b64encode(json.dumps(session.raw).encode("utf-8"))
+            data = self.signer.sign(data)
+            response.add_cookie(
+                conf.SESSION_COOKIE_NAME,
+                data.decode(),
+                conf.SESSION_COOKIE_MAX_AGE,
+                conf.SESSION_COOKIE_EXPIRES,
+                conf.SESSION_COOKIE_PATH,
+                conf.SESSION_COOKIE_DOMAIN,
+                conf.SESSION_COOKIE_SECURE,
+                conf.SESSION_COOKIE_HTTP_ONLY,
+                conf.SESSION_COOKIE_SAME_SITE,
+            )
+        return response

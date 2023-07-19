@@ -3,7 +3,7 @@ requires = ['setuptools>=61.0']
 build-backend = 'setuptools.build_meta'
 
 [project]
-name = "Vank"
+name = "vank"
 version = "1.0.2"
 authors = [
     { name = "WanKe", email = "852003793@qq.com" },
@@ -18,7 +18,6 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "python-multipart==0.0.5",
     "itsdangerous==2.1.2"
 ]
 [project.urls]
@@ -26,4 +25,4 @@ dependencies = [
 "Documents" = "http://docs.bestvank.cn/"
 
 [project.entry-points.console_scripts]
-vank = "Vank.__main__:entry_point"
+vank = "vank.__main__:entry_point"
