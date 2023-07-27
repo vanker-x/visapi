@@ -19,9 +19,9 @@ class Settings(base.BaseSettings):
             self.module = import_module(module)
         except:
             raise ModuleNotFoundError(
-                f"\n运行失败,未能找到配置模块的路径环境变量(PROJECT_SETTING)\n"
-                f"当前配置路径:PROJECT_SETTING='{module}'\n"
-                f"请像下面这样添加配置模块的路径:\n"
+                f"\nFailed, unable to find path environment variable for configuration module (PROJECT SETTING)\n"
+                f"Current configuration module path:PROJECT_SETTING='{module!r}'\n"
+                f"Please add the correct path for the configuration module as follows:\n"
                 f"import os\n"
                 f"os.environ['PROJECT_SETTING']='your setting module path'"
             )

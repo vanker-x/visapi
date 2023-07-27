@@ -36,7 +36,7 @@ class MultiPartFormParser:
             try:
                 field_name = mapped_content_disposition[b"name"]
             except KeyError:
-                raise ParseException("Content-Disposition标头字段'name'必须提供")
+                raise ParseException('The Content Disposition header field "name" must be provided')
             else:
                 field_name = field_name.decode(self.charset)
             # 如果filename在content_dispositions中,那么该部分为文件

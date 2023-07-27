@@ -3,7 +3,6 @@
 # @Author  : vank
 # @Project : vank
 import re
-import traceback
 from importlib import import_module
 
 import_regex = re.compile(r'^(?P<module>[a-zA-Z]+[a-zA-Z0-9_]*(\.[a-zA-Z]+[a-zA-Z0-9_]*)*)(:(?P<attr>[a-zA-Z0-9_]+))?$')
@@ -19,7 +18,7 @@ def import_from_str(import_str: str):
     """
     res = import_regex.match(import_str)
     if not res:
-        raise ValueError('请传入正确语法的模块路径\n'
+        raise ValueError(f'wrong path syntax "{import_str}"\n'
                          'e.g:vank.utils.load_module:import_from_str')
     module, attr = res.groupdict().values()
     try:
@@ -28,5 +27,4 @@ def import_from_str(import_str: str):
             return getattr(module_object, attr)
         return module_object
     except Exception as e:
-        raise ImportError(f'导入{import_str}失败,请传入正确语法的模块路径\n'
-                          f'ERROR:{traceback.format_exc()}')
+        raise ImportError(f'Failed to import "{import_str}". Please pass in the path with the correct syntax\n')

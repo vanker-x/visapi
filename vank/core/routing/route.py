@@ -2,11 +2,12 @@
 # @Time:    2022/7/26-0:33
 # @Author:  vank
 import re
+import inspect
 from urllib.parse import quote
-from vank.core.config import conf
-from vank.core import exceptions
-from vank.utils.load_module import import_from_str
 from functools import lru_cache
+from vank.core import exceptions
+from vank.core.config import conf
+from vank.utils.load_module import import_from_str
 
 # 构建路由正则
 build_route_regex_pattern = re.compile(
@@ -35,7 +36,7 @@ def parse_route_rule(rule):
     if start < end:
         legacy_route = rule[start:]
         if '{' in legacy_route or '}' in legacy_route:
-            raise SyntaxError('错误的路由语法')
+            raise SyntaxError('Incorrect routing syntax.Should not appear single "{" or "}"')
         yield None, legacy_route
 
 
@@ -47,7 +48,7 @@ def get_converters():
     convert_dict = dict()
     for converter_name, convert_module_path in conf.ROUTE_CONVERTERS.items():
         if converter_name in convert_dict.keys():
-            raise ValueError(f'转换器名字不能重复:{converter_name},请修改')
+            raise ValueError(f'The converter name "{converter_name}" cannot be duplicate')
         converter_class = import_from_str(convert_module_path)
         convert_dict[converter_name] = converter_class()
     return convert_dict
@@ -72,7 +73,7 @@ class BaseRoute:
             return ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"]
         methods_upper = [method.upper() for method in methods]
         if not set(methods_upper) < {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"}:
-            raise ValueError(f'{self.endpoint}定义路由请求方法时出错,存在非HTTP请求方法')
+            raise ValueError(f'"{self.endpoint}"Binding failed, there are non HTTP request methods present')
         return methods_upper
 
     def __get_converter_list(self):
@@ -95,12 +96,10 @@ class BaseRoute:
                 continue
             # ===处理动态路由===
             if static_or_variable in self.argument_converters.keys():
-                raise SyntaxError('路由规则中不能出现重复的关键字参数')
-            converter = self.converters.get(converter_name)
-            if not converter:
-                raise SyntaxError(
-                    f'{self.endpoint}的变量对应转换器[{converter_name}]未找到,'
-                    f'目前支持的类型为{"、".join(self.__get_converter_list())}')
+                raise SyntaxError('Duplicate keyword parameters cannot appear in route path')
+            converter = self.converters.get(converter_name, None)
+            if converter is None:
+                raise SyntaxError(f'{converter_name} Converter does not exist.')
             # 将变量名对应的转换器添加到字典中,在路由过来的时候以便转换为相应的类型
             self.argument_converters.update({static_or_variable: converter})
             self.regex_list.append(f"(?P<{static_or_variable}>{converter.regex})")
@@ -151,14 +150,16 @@ class Route(BaseRoute):
         return quote(url, safe="/#%[]=:;$&()+,!?*@'~")
 
     def __str__(self):
-        return '<{cls_name}>:{regex} <==> {endpoint}'.format(
+        return '<{cls_name}>:"{route_path}" <==> "{endpoint}"'.format(
+            route_path=self.route_path,
             cls_name=self.__class__.__name__,
             regex=self.route_pattern,
             endpoint=self.endpoint
         )
 
     def __repr__(self):
-        return '<{cls_name}>:{regex} <==> {endpoint}'.format(
+        return '<{cls_name}>:"{route_path}" <==> "{endpoint}"'.format(
+            route_path=self.route_path,
             cls_name=self.__class__.__name__,
             regex=self.route_pattern,
             endpoint=self.endpoint

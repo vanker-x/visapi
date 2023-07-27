@@ -4,7 +4,8 @@
 
 class ReflectNotFound(Exception):
     def __init__(self, endpoint, **arguments):
-        super(ReflectNotFound, self).__init__(f'url_reflect未找到对应的路径 <{endpoint}><==>{"".join(arguments.keys())}')
+        super(ReflectNotFound, self).__init__(f'URL reflect did not find the corresponding path'
+                                              f' <{endpoint}><==>{"".join(arguments.keys())}')
 
 
 class NotFoundException(Exception):
@@ -23,7 +24,7 @@ class PermissionDeniedException(Exception):
     """权限错误"""
 
 
-class NonResponseException(Exception):
+class NoResponseException(Exception):
     """视图未返回Response"""
 
 

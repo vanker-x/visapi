@@ -25,7 +25,7 @@ subapp_files = {
 
 
 class Command(BaseCommand):
-    description = '你可以通过此命令创建一个子应用'
+    description = 'You can create a sub application through this command'
 
     def run(self, argv):
         options, args = self.parser.parse_known_args(argv[2:])
@@ -38,7 +38,7 @@ class Command(BaseCommand):
         try:
             os.makedirs(sub_app_dir)
         except FileExistsError:
-            self.stderr.write(f'"{name}"子应用已存在,无法创建')
+            self.stderr.write(f'The "{name}" sub application already exists and cannot be created')
             sys.exit()
         for file_name, template in subapp_files.items():
             with open(os.path.join(sub_app_dir, file_name), 'w', encoding='utf-8') as f:
@@ -48,11 +48,11 @@ class Command(BaseCommand):
         self.parser.add_argument(
             '-n',
             '--name',
-            help='子应用的名称',
+            help='Name of sub application',
             required=True
         )
         self.parser.add_argument(
             '-d',
             '--directory',
-            help='指定子应用所在的目录'
+            help='Specify the directory where the sub application is located'
         )

@@ -15,6 +15,11 @@ PROJECT_BASE_DIR = Path(__file__).parent
 # 密钥
 SECRET_KEY = '%(secret)s'
 
+# 子应用
+SUB_APPLICATIONS = [
+    'vank.applications.static.urls:sub',
+]
+
 # 含参数路由转换器
 ROUTE_CONVERTERS = {
     'int': 'vank.core.routing.converters:IntConverter',
@@ -37,7 +42,7 @@ ERROR_HANDLER = 'vank.core.handlers.exception:default_handler'
 USE_STATIC = True
 
 # 静态文件URL
-STATIC_URL = '/static/'
+STATIC_URL = '/static'
 
 # 静态文件存放路径
 STATIC_PATH = PROJECT_BASE_DIR / 'statics'
@@ -123,7 +128,7 @@ init_templates = {
 
 
 class Command(BaseCommand):
-    description = '通过init命令初始化项目'
+    description = 'Initialize the project through this command'
 
     def run(self, argv):
         options, args = self.parser.parse_known_args(argv[2:])
@@ -131,7 +136,7 @@ class Command(BaseCommand):
         if project_name:
             project_dir = os.path.join(os.getcwd(), project_name)
             if os.path.exists(project_dir):
-                self.stderr.write(f'文件夹`{project_name}`已经存在、无法创建\n')
+                self.stderr.write(f'The folder "{project_name}" already exists and cannot be created\n')
                 sys.exit()
         else:
             project_dir = os.getcwd()
@@ -147,5 +152,5 @@ class Command(BaseCommand):
         self.parser.add_argument(
             '-n',
             '--name',
-            help='在新的目录下初始化项目'
+            help='Initialize the project in a new directory'
         )

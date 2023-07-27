@@ -1,6 +1,6 @@
-from vank.core.views import View
-from vank.core.context import request
-from vank.core.views.static import control as ct
+from vank.core import request
+from vank.core.view import View
+from vank.applications.static import control as ct
 
 
 class StaticView(View):

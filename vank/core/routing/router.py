@@ -15,16 +15,13 @@ class Router:
         添加路由到路由列表中 同时校验是否有相同路由
         """
         if route_path in self.route_path_set:
-            raise LookupError(f'不能同时存在相同路由:[{route_path}]')
-
+            raise ValueError('"%s" This route is already in the router.' % route_path)
+        # 不能存在多个相同的endpoint
+        if route.endpoint in self.endpoint_func_dic:
+            raise ValueError('"%s" This endpoint is already in the router.' % route.endpoint)
         self.route_path_set.add(route_path)
         self._routes.append(route)
-        # 判断是否有相同的endpoint且该endpoint应该指向同一视图函数 否则报错
-        endpoint = route.endpoint
-        exist_func = self.endpoint_func_dic.get(endpoint, None)
-        if exist_func and view_func is not exist_func:
-            raise ValueError(f'一个endpoint不应指向多个视图:[{endpoint}]')
-        self.endpoint_func_dic[endpoint] = view_func
+        self.endpoint_func_dic[route.endpoint] = view_func
 
     def match(self):
         """
@@ -39,14 +36,15 @@ class Router:
                 continue
             # 判断请求方法是否允许
             if not route.check_method(request.method):
-                raise exceptions.MethodNotAllowedException(f'{request.method.upper()}方法不被允许', allow=route.methods)
+                raise exceptions.MethodNotAllowedException(f'"{request.method.upper()}" Method is not allowed',
+                                                           allow=route.methods)
             # 获取endpoint和类型转换后的参数
             endpoint, arguments = route.endpoint, route.convert_arguments(**res.groupdict())
             view_function = self.endpoint_func_dic.get(endpoint)
             return view_function, arguments
 
         # 如果路由规则都没有找到那么就报404错误
-        raise exceptions.NotFoundException(f'资源 {request.path} 未找到')
+        raise exceptions.NotFoundException(f'Resource {request.path} not found')
 
     @property
     def routes(self):

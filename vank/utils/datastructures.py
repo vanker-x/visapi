@@ -183,14 +183,14 @@ class Session:
     def __getitem__(self, key):
         if key in self._session.keys():
             return self._session[key]
-        raise KeyError(f'session key {key}不存在')
+        raise KeyError(f'Session key "{key}" does not exist')
 
     def __delitem__(self, key):
         if key in self.keys():
             del self._session[key]
             self._is_changed = True
         else:
-            raise KeyError(f'无法删除 session key {key}不存在')
+            raise KeyError(f'Unable to delete session key."{key}" does not exist')
 
     def __setitem__(self, key, value):
         self._session[key] = value

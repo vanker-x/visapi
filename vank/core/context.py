@@ -39,7 +39,7 @@ def context_proxy_method(func: t.Callable, on_failed: t.Optional[t.Callable] = N
         if obj is not unbound:
             return func(obj, *args, **kwargs)
         if on_failed is None:
-            raise NotBoundError(f"未找到上下文，请在上下文中执行")
+            raise NotBoundError(f"Context not found, please execute within the context")
         return on_failed(self, *args, **kwargs)
 
     return inner

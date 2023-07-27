@@ -14,7 +14,7 @@ class BasicConverter(metaclass=ABCMeta):
     name = ""
 
     def __init__(self):
-        assert self.name, "必须为子类转换器配置名字 -->name"
+        assert self.name, "You must configure a name for the route converter"
 
     @abstractmethod
     def convert_to_python(self, value):

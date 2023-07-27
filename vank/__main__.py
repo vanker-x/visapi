@@ -11,7 +11,7 @@ from vank.utils.load_module import import_from_str
 
 
 class MainCommand(BaseCommand):
-    epilog = '可以通过 python -m vank <命令> -h 查看用法'
+    epilog = 'You can view usage through python -m vank <command> -h'
 
     def run(self, argv):
         c = argv[1] if len(argv) > 1 else 'help'
@@ -26,10 +26,10 @@ class MainCommand(BaseCommand):
         try:
             command_class = commands[c]
         except KeyError:
-            self.stderr.write(f'未知命令:{c}\n')
+            self.stderr.write(f'Unknown command:{c}\n')
             close_matches = get_close_matches(c, commands)
             if close_matches:
-                self.stderr.write(f'与{c}相似的命令有:\n- ')
+                self.stderr.write(f'I guess what you are thinking is:\n- ')
                 self.stderr.write("\n- ".join(close_matches))
         else:
             command_class().run(argv)
@@ -47,7 +47,7 @@ class MainCommand(BaseCommand):
         return cmds
 
     def print_help(self):
-        self.stdout.write('当前可用的命令有:\n- ')
+        self.stdout.write('The currently available commands are:\n- ')
         self.stdout.write(
             '\n- '.join(
                 [

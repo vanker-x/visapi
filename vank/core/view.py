@@ -2,7 +2,7 @@
 # DateTime: 2022/9/26-17:16
 # Encoding: UTF-8
 from vank.core.exceptions import NoneViewMethodException
-from vank.core.http import request
+from vank.core import request
 
 
 class View:
@@ -19,14 +19,14 @@ class View:
          return Response
 
     """
-    __singleton = None
 
     @property
     def get_view_methods(self):
         http_methods = ["get", "post", "put", "patch", "delete", "head", "options", "trace"]
         allowed_methods = [method for method in http_methods if hasattr(self, method)]
         if not allowed_methods:
-            raise NoneViewMethodException('类视图应至少定义一个http请求方法所对应的方法')
+            raise NoneViewMethodException('The class view should define at least one '
+                                          'method corresponding to the HTTP request method')
         return allowed_methods
 
     def get_response(self, *args, **kwargs):
@@ -42,12 +42,3 @@ class View:
     @property
     def __name__(self):
         return self.__class__.__name__
-
-    def __eq__(self, other):
-        return self == other
-
-    def __new__(cls, *args, **kwargs):
-        if cls.__singleton is None:
-            obj = super().__new__(cls)
-            cls.__singleton = obj
-        return cls.__singleton

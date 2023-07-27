@@ -2,8 +2,8 @@ import atexit
 import inspect
 import logging
 import typing as t
+from vank.core.view import View
 from vank.core.config import conf
-from vank.core.views.view import View
 from vank.utils import import_from_str
 from vank.__version__ import __version__
 from vank.core.routing.route import Route
@@ -14,8 +14,7 @@ from vank.utils.reloader import run_in_reloader
 from vank.middleware.base import BaseMiddleware
 from vank.core.http.response import BaseResponse
 from vank.core.context import request, application
-from vank.core.views.static.views import StaticView
-from vank.core.exceptions import NonResponseException
+from vank.core.exceptions import NoResponseException
 from vank.utils.log import setup_config as setup_log_config
 from vank.core.handlers.exception import conv_exc_to_response
 from vank.utils.signal import on_request_start, on_request_end, on_stop_down
@@ -28,77 +27,77 @@ class Base:
         # 实例化路由映射表
         self.router = Router()
 
-    def __set_route(self, route_path, view_func, methods, **kwargs):
+    def _set_route(self, route_path, view_func, methods, **kwargs):
         """
         添加路由
         """
-        assert route_path.startswith('/'), f'{view_func} 视图的路由"{route_path}"应该以/开头'
+        assert route_path.startswith('/'), f'The route "{route_path}" of the {view_func!r} view should start with "/"'
         # 获取endpoint
-        endpoint = kwargs.pop('endpoint', None) or view_func.__name__
-        # 判断本实例是否为子应用,那么就应该加上子应用名字
-        if isinstance(self, SubApplication):
-            endpoint = f'{self.name}.{endpoint}'
+        endpoint = kwargs.pop('endpoint', None)
+        if not isinstance(endpoint, str) or not endpoint:
+            raise ValueError(f'Please provide an endpoint for %s' % view_func)
         # 实例化一个路由
         route = Route(route_path, methods, endpoint, **kwargs)
         # 添加到路由映射表中
         self.router.add_route(route_path, route, view_func)
 
-    def adapt_view_func(self, func_or_class, methods):
+    def adapt_view_func(self, func_or_class: t.Union[t.Callable, View], methods):
         # 利用inspect 检查是否为类或者函数
-        if inspect.isclass(func_or_class) and issubclass(func_or_class, View):
+        if inspect.isclass(func_or_class) and issubclass(func_or_class, View):  # noqa
             # 当视图为 View 视图的子类时 methods 应该为None
             if methods is not None:
-                raise ValueError(f'使用类视图 {func_or_class} 不应传入methods 参数')
+                raise ValueError(f'The methods parameter should not be passed in when using class view {func_or_class}')
             view = func_or_class()
             methods_list = view.get_view_methods
         elif inspect.isfunction(func_or_class):
             view = func_or_class
             methods_list = methods
         else:
-            raise ValueError(f'视图应该为一个函数或View的子类 而不是{func_or_class}')
+            raise ValueError(
+                f'View-function should be a function or subclass of "View" instead of {type(func_or_class).__name__}')
 
         return view, methods_list
 
-    def new_route(self, route_path: str, methods=None, **kwargs):
-        def decorator(func_or_class):
+    def new_route(self, route_path: str, methods: t.Optional[t.Sequence] = None, **kwargs):
+        def decorator(func_or_class: t.Union[t.Callable, View]):
             view, methods_list = self.adapt_view_func(func_or_class, methods)
             # 调用set_route方法
-            self.__set_route(route_path, view, methods_list, **kwargs)
+            self._set_route(route_path, view, methods_list, **kwargs)
             return func_or_class
 
         return decorator
 
-    def get(self, route_path, **kwargs):
+    def get(self, route_path: str, **kwargs):
         """
         注册视图允许的请求方法仅为get的快捷方式
         """
         return self.new_route(route_path, ['GET'], **kwargs)
 
-    def post(self, route_path, **kwargs):
+    def post(self, route_path: str, **kwargs):
         """
         注册视图允许的请求方法仅为post的快捷方式
         """
         return self.new_route(route_path, ['POST'], **kwargs)
 
-    def put(self, route_path, **kwargs):
+    def put(self, route_path: str, **kwargs):
         """
         注册视图允许的请求方法仅为put的快捷方式
         """
         return self.new_route(route_path, ['PUT'], **kwargs)
 
-    def patch(self, route_path, **kwargs):
+    def patch(self, route_path: str, **kwargs):
         """
         注册视图允许的请求方法仅为patch的快捷方式
         """
         return self.new_route(route_path, ['PATCH'], **kwargs)
 
-    def delete(self, route_path, **kwargs):
+    def delete(self, route_path: str, **kwargs):
         """
         注册视图允许的请求方法仅为delete的快捷方式
         """
         return self.new_route(route_path, ['DELETE'], **kwargs)
 
-    def add_route(self, route_path: str, func_or_class, methods=None, **kwargs):
+    def add_route(self, route_path: str, func_or_class: t.Union[t.Callable, View], methods=None, **kwargs):
         self.new_route(route_path, methods, **kwargs)(func_or_class)
         return self
 
@@ -119,8 +118,8 @@ class Application(Base):
     def _setup(self):
         # 配置logging
         setup_log_config(conf.LOGGING)
-        if conf.USE_STATIC:
-            self.new_route(conf.STATIC_URL + '{fp:path}', endpoint=conf.STATIC_ENDPOINT)(StaticView)
+        for sub_application in conf.SUB_APPLICATIONS:
+            self.include(sub_application)
         # 初始化中间件
         self.initialize_middleware_stack()
         # 将on_stop_down信号的emit方法注册到atexit中
@@ -139,7 +138,10 @@ class Application(Base):
             # 导入中间件类
             middleware_class = import_from_str(m_str)
             if not issubclass(middleware_class, BaseMiddleware):
-                raise ValueError(f"{m_str}应该为BaseMiddleware的子类而不是{type(middleware_class).__name__}")
+                raise ValueError(f'"%s" Should be a subclass of "BaseMiddleware" instead of %s' % (
+                    m_str,
+                    type(middleware_class).__name__
+                ))
             # 实例化中间件 将handler传入其中
             middleware_instance = middleware_class(get_response_func)
             # 如果该中间件有handle_view方法 那么就添加到__handle_view_middlewares中
@@ -176,7 +178,7 @@ class Application(Base):
             response = view_func(**view_kwargs)
         # 当视图返回的不是BaseResponse 或 BaseResponse子类的实例 raise NonResponseException
         if not isinstance(response, BaseResponse):
-            raise NonResponseException(f"{view_func}视图没有返回正确的响应")
+            raise NoResponseException(f'The view "%s" did not return a response' % view_func)
 
         return response
 
@@ -185,7 +187,6 @@ class Application(Base):
         开启服务
         :return: None
         """
-        assert self.router.endpoint_func_dic, '未能找到至少一个以上的视图处理请求'
         # 判断是否使用热重载
         if conf.AUTO_RELOAD:
             run_in_reloader(
@@ -197,9 +198,9 @@ class Application(Base):
 
     def _inner_run(self):
         logger.warning(
-            f"你的服务运行于:http://{conf.DEFAULT_HOST}:{conf.DEFAULT_PORT}/\n"
-            f"- 请勿用于生产环境\n"
-            f"- 版本号:{__version__}\n"
+            f"Your service is running on:http://{conf.DEFAULT_HOST}:{conf.DEFAULT_PORT}/\n"
+            f"- Do not use in production environment\n"
+            f"- Version number:{__version__}\n"
         )
         httpd = make_server(conf.DEFAULT_HOST, conf.DEFAULT_PORT, self)
         httpd.serve_forever()
@@ -211,9 +212,12 @@ class Application(Base):
         if isinstance(sub, str):
             sub = import_from_str(sub)
         if not isinstance(sub, SubApplication):
-            raise TypeError(f"参数 sub类型不应该为{type(sub)}")
+            raise TypeError(f'The type of parameter "sub" should be "SubApplication" instead of {type(sub)}')
         if sub.name in self.sub_applications.keys():
-            raise ValueError(f'挂载子应用失败 {sub}:不能出现重复的子应用名称 <{sub.name}>')
+            raise ValueError(f'Failed to include "%s": Cannot have duplicate sub application names "%s"' % (
+                sub,
+                sub.name
+            ))
 
         self.router.include_router(sub.router)  # 将子应用的路由包含到主路由中
         sub.root = self  # 对子应用进行绑定
@@ -266,24 +270,40 @@ class Application(Base):
     def url_reflect(self, endpoint: str, **kwargs):
         return self.router.url_reflect(endpoint, **kwargs)
 
+    def _set_route(self, route_path, view_func, methods, **kwargs):
+        endpoint = kwargs.pop("endpoint", None)
+        if endpoint is None:
+            endpoint = view_func.__name__
+        kwargs["endpoint"] = endpoint
+        return super()._set_route(route_path, view_func, methods, **kwargs)
+
 
 class SubApplication(Base):
-    def __init__(self, name, prefix: t.Optional[str] = None):
+    def __init__(self, name: str, prefix: t.Optional[str] = None):
         super(SubApplication, self).__init__()
         self.name = name
         self.prefix = prefix
         if self.prefix:
-            assert not self.prefix.endswith('/'), "url前缀不应以 '/'结尾"
-            assert self.prefix.startswith('/'), "url前缀应以 '/'开头"
-        self.root: "Application" = None
+            assert not self.prefix.endswith('/'), 'The Route prefix should not end with "/"'
+            assert self.prefix.startswith('/'), 'The Route prefix should start with "/"'
+        self.root: t.Optional[Application] = None
 
-    def new_route(self, route_path: str, methods=None, **kwargs):
+    def _set_route(self, route_path: str, view_func: t.Callable, methods: t.Sequence, **kwargs):
+        endpoint = kwargs.pop("endpoint", None)
+        if endpoint is None:
+            endpoint = f"{self.name}.{view_func.__name__}"
+        kwargs["endpoint"] = endpoint
+        return super()._set_route(route_path, view_func, methods, **kwargs)
+
+    def new_route(self, route_path: str, methods: t.Optional[t.Sequence] = None, **kwargs):
         if self.prefix:
-            assert route_path.startswith("/"), f'子应用{self.name}视图的路由"{route_path}"应该以/开头'
+            assert route_path.startswith("/"), f'The route "{route_path}" of the sub application "{self.name}"' \
+                                               f' should start with "/"'
             route_path = self.prefix + route_path
         return super(SubApplication, self).new_route(route_path, methods, **kwargs)
 
     def url_reflect(self, endpoint: str, **kwargs):
         if not isinstance(self.root, Application):
-            raise TypeError(f'url_reflect失败,root的类型应为{type(Application).__name__} 你忘记挂载了吗?')
+            raise TypeError(f'The type of root should be {type(Application).__name__}.'
+                            f' Did you forget to be included to Application?')
         return self.root.url_reflect(endpoint, **kwargs)

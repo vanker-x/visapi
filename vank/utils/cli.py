@@ -22,7 +22,7 @@ class BaseCommand:
         self.init_arguments()
 
     def run(self, argv):
-        raise NotImplementedError('run方法应该由子类重写')
+        raise NotImplementedError('The run method should be overridden by subclasses')
 
     def init_arguments(self):
         pass

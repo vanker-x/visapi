@@ -107,7 +107,8 @@ class BaseResponse:
         if httponly:
             cookie['httponly'] = True
         if same_site:
-            assert same_site in ["lax", "none", "strict"], 'same_site的值必须为 "lax", "none", "strict"'
+            assert same_site in ["lax", "none", "strict"], \
+                'The value of same_site must be one of "lax", "none", or "strict"'
             cookie['samesite'] = same_site
 
     def delete_cookie(self,
@@ -219,7 +220,7 @@ class ResponseFile(BaseResponse):
     media_type = 'application/octet-stream'
 
     def __init__(self, filepath: str, filename=None, as_attachment=True, media_type=None, *args, **kwargs):
-        assert not kwargs.get('content', None), 'ResponseFile不应该有content'
+        assert not kwargs.get('content', None), 'This response should not have the "content" parameter'
         self.as_attachment = as_attachment
         self.filepath = os.path.abspath(filepath)
         self.filename = filename
@@ -230,9 +231,9 @@ class ResponseFile(BaseResponse):
     def update_headers(self):
         # 判断文件是否存在 如果不存在那么raise FileNotFoundError
         if not os.path.exists(self.filepath):
-            raise FileNotFoundError(f'{self.filepath}文件不存在')
+            raise FileNotFoundError(f'"{self.filepath}"File does not exist')
         if not os.path.isfile(self.filepath):
-            raise TypeError(f'{self.filepath}不是文件')
+            raise TypeError(f'"{self.filepath}"This is not a file')
         # 获取文件的统计信息
         stat = os.stat(self.filepath)
         # 根据统计信息的st_size 可以获取到文件的长度

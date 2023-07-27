@@ -21,10 +21,10 @@ def get_file(if_modify_since: str, fp: str):
     full_path = Path(conf.STATIC_PATH).joinpath(fp)
     # 判断文件是否存在
     if not full_path.exists():
-        raise NotFoundException(f'{full_path}资源不存在')
+        raise NotFoundException(f'"{full_path}"Resource does not exist')
     # 判断是否为文件夹
     if full_path.is_dir():
-        raise NotFoundException('不允许索引目录')
+        raise NotFoundException('Index directory not allowed')
     # 获取modify时间,如果没有修改那么不返回文件
     # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/If-Modified-Since
     if if_modify_since:

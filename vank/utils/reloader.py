@@ -32,7 +32,7 @@ class Reloader:
                 continue
 
             if current_modify_time > previous_modify_time:
-                logger.warning(f'检测到文件{name}已经改变 重启!')
+                logger.warning(f'File {name} has changed!')
                 self.trigger_reload()
 
     def trigger_reload(self):
@@ -43,7 +43,7 @@ class Reloader:
         通过subprocess重启服务
         """
         while 1:
-            logger.warning('服务发生变化、重启'.center(20, '='))
+            logger.warning('The service has changed and is currently restarting'.center(20, '='))
             # 获取启动参数
             args = self._get_args_for_reloading()
             # 创建新的环境变量
