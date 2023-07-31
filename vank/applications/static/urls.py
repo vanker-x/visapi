@@ -3,4 +3,4 @@ from vank.core import SubApplication
 from vank.applications.static import views
 
 sub = SubApplication("static", prefix=conf.STATIC_URL)
-sub.add_route("/", views.StaticView, endpoint=conf.STATIC_ENDPOINT)
+sub.add_route("/{fp:path}", views.StaticView, endpoint=conf.STATIC_ENDPOINT)

@@ -11,7 +11,7 @@ control_template = """"""
 views_template = """
 from vank.core import SubApplication, request, response
 
-api_sub = SubApplication('api')
+{name}_sub = SubApplication('{name}')
 
 # 在此编写你的视图
 
@@ -38,7 +38,7 @@ class Command(BaseCommand):
         try:
             os.makedirs(sub_app_dir)
         except FileExistsError:
-            self.stderr.write(f'The "{name}" sub application already exists and cannot be created')
+            self.stderr.write(f'The "{name}" sub application already exists and cannot be created\n')
             sys.exit()
         for file_name, template in subapp_files.items():
             with open(os.path.join(sub_app_dir, file_name), 'w', encoding='utf-8') as f:

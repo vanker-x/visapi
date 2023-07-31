@@ -106,5 +106,5 @@ def check_static_url(sender, *args, **kwargs):
         raise Exception('STATIC_URL not found in configuration')
     if not isinstance(url, str):
         raise Exception(f'The STATIC_URL type in the configuration must be str instead of {type(url).__name__}')
-    if not url.startswith('/') and not url.endswith('/'):
-        raise Exception('The start and end of the STATIC_URL must be "/"')
+    if not url.startswith('/') or url.endswith('/'):
+        raise Exception('The start of the STATIC_URL must be "/" and cannot end with "/"')
