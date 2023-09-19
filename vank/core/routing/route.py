@@ -24,20 +24,15 @@ def parse_route_rule(rule):
         # 如果没有匹配出结果、说明剩余的字符串是静态的
         if not res:
             break
-        result_dict = res.groupdict()
-        static_route = result_dict.get("static_route")
-        variable = result_dict.get("variable")
-        converter = result_dict.get("converter")
-        if result_dict.get("static_route"):
-            yield None, static_route
-        yield converter, variable
+        group_dict = res.groupdict()
+        yield group_dict["static_route"], group_dict["variable"], group_dict["converter"]
         start = res.end()
     # 拼接剩余静态路由
     if start < end:
         legacy_route = rule[start:]
         if '{' in legacy_route or '}' in legacy_route:
             raise SyntaxError('Incorrect routing syntax.Should not appear single "{" or "}"')
-        yield None, legacy_route
+        yield legacy_route, None, None
 
 
 @lru_cache(maxsize=None)
@@ -87,22 +82,21 @@ class BaseRoute:
         创建一条属于这条路由的正则
         :return:
         """
-        for converter_name, static_or_variable in parse_route_rule(self.route_path):
-            # 没有路由转换器,但是static_or_variable不为空、则可以判定static_or_variable为静态的路由
-            if not converter_name and static_or_variable:
-                # 需要将静态路径escape防止出现安全问题
-                # 例如 '/foo.bar' 如果直接append那么如果访问/fooobar也是能够访问到此条路由，这是不合法的
-                self.regex_list.append(re.escape(static_or_variable))
-                continue
+        for static_route, variable, converter_name in parse_route_rule(self.route_path):
+            # 需要将静态路径escape防止出现转义安全问题
+            # 例如 直接拼接'/foo.bar'这段规则到路由正则中，那么匹配'/fooobar'也能通过匹配,这是不合法的
+            self.regex_list.append(re.escape(static_route))
             # ===处理动态路由===
-            if static_or_variable in self.argument_converters.keys():
-                raise SyntaxError('Duplicate keyword parameters cannot appear in route path')
+            if converter_name is None:
+                continue
+            if variable in self.argument_converters.keys():
+                raise SyntaxError(f"Duplicate keyword parameters '{variable}' cannot appear in same route path")
             converter = self.converters.get(converter_name, None)
             if converter is None:
-                raise SyntaxError(f'{converter_name} Converter does not exist.')
+                raise SyntaxError(f" Converter '{converter_name}' does not exist.")
             # 将变量名对应的转换器添加到字典中,在路由过来的时候以便转换为相应的类型
-            self.argument_converters.update({static_or_variable: converter})
-            self.regex_list.append(f"(?P<{static_or_variable}>{converter.regex})")
+            self.argument_converters.update({variable: converter})
+            self.regex_list.append(f"(?P<{variable}>{converter.regex})")
         # 开始拼接解析后的路由规则
         regex = f"^{''.join(self.regex_list)}$"
 
