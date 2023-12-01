@@ -2,7 +2,7 @@ import json
 import base64
 from http.cookies import Morsel
 from vank.core.config import conf
-from vank.core.context import request
+from vank.core.context.current import request
 from vank.utils.datastructures import Session
 from vank.middleware.base import BaseMiddleware
 from itsdangerous import TimestampSigner, BadSignature

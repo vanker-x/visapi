@@ -1,6 +1,6 @@
 from vank.core import exceptions
-from vank.core.context import request
 from vank.core.routing.route import Route
+from vank.core.context.current import request
 from vank.utils.arguments import contain_arguments, has_key_word_argument
 
 
@@ -20,6 +20,7 @@ class Router:
         # 不能存在多个相同的endpoint
         if route.endpoint in self.endpoint_func_dic:
             raise ValueError('"%s" This endpoint is already in the router.' % route.endpoint)
+        # 当存在参数路由时，检查视图是否接收对应的参数或者接收关键字参数
         if (
                 not contain_arguments(view_func, route.argument_converters.keys())
                 and

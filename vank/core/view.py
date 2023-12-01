@@ -1,8 +1,8 @@
 # Created by vank
 # DateTime: 2022/9/26-17:16
 # Encoding: UTF-8
+from vank.core.context.current import request
 from vank.core.exceptions import NoneViewMethodException
-from vank.core import request
 
 
 class View:

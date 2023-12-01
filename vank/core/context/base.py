@@ -2,7 +2,6 @@ import math
 import operator
 import typing as t
 from contextvars import ContextVar
-from vank.core.http.request import Request
 
 unbound = object()
 
@@ -120,12 +119,3 @@ class ContextProxy:
     __subclasscheck__ = context_proxy_method(lambda obj, other: issubclass(other, obj))
     __class__ = property(
         context_proxy_method(lambda obj: type(obj), on_failed=not_bound_yet))
-
-
-# 线程安全的request ContextVar
-_request_context_var = ContextVar("request", default=unbound)
-# 被代理后的request ContextVar
-request: Request = ContextProxy("request", _request_context_var)  # noqa
-
-_application_context_var = ContextVar("application", default=unbound)
-application = ContextProxy("application", _application_context_var)

@@ -1,5 +1,5 @@
 from vank.core.config import conf
-from vank.core.context import request
+from vank.core.context.current import request
 from vank.middleware.base import BaseMiddleware
 from vank.core.http.response import ResponsePlain, Response400
 

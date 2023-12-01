@@ -1,5 +1,5 @@
-from vank.core import request
 from vank.core.view import View
+from vank.core.context.current import request
 from vank.applications.static import control as ct
 
 

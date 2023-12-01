@@ -13,8 +13,8 @@ from wsgiref.simple_server import make_server
 from vank.utils.reloader import run_in_reloader
 from vank.middleware.base import BaseMiddleware
 from vank.core.http.response import BaseResponse
-from vank.core.context import request, application
 from vank.core.exceptions import NoResponseException
+from vank.core.context.current import request, application
 from vank.utils.log import setup_config as setup_log_config
 from vank.core.handlers.exception import conv_exc_to_response
 from vank.utils.signal import on_request_start, on_request_end, on_stop_down
@@ -199,7 +199,7 @@ class Application(Base):
     def _inner_run(self):
         logger.warning(
             f"Your service is running on:http://{conf.DEFAULT_HOST}:{conf.DEFAULT_PORT}/\n"
-            f"- Do not use in production environment\n"
+            f"- Do not use this WSGI server in production environment\n"
             f"- Version number:{__version__}\n"
         )
         httpd = make_server(conf.DEFAULT_HOST, conf.DEFAULT_PORT, self)
