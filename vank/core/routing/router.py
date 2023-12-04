@@ -1,7 +1,13 @@
+import inspect
+import typing as t
 from vank.core import exceptions
 from vank.core.routing.route import Route
 from vank.core.context.current import request
+from vank.core.view import View
 from vank.utils.arguments import contain_arguments, has_key_word_argument
+
+HTTP_METHOD_TYPE = t.Literal["GET", "POST", "PUT", "DELETE", "HEAD", "PATCH", "OPTIONS", "TRACE"]
+ViewType = t.TypeVar("ViewType", callable, View)
 
 
 class Router:
@@ -10,28 +16,6 @@ class Router:
         self.route_path_set = set()
         # endpoint -->view_func 映射
         self.endpoint_func_dic = {}
-
-    def add_route(self, route_path: str, route: "Route", view_func):
-        """
-        添加路由到路由列表中 同时校验是否有相同路由
-        """
-        if route_path in self.route_path_set:
-            raise ValueError('"%s" This route is already in the router.' % route_path)
-        # 不能存在多个相同的endpoint
-        if route.endpoint in self.endpoint_func_dic:
-            raise ValueError('"%s" This endpoint is already in the router.' % route.endpoint)
-        # 当存在参数路由时，检查视图是否接收对应的参数或者接收关键字参数
-        if (
-                not contain_arguments(view_func, route.argument_converters.keys())
-                and
-                not has_key_word_argument(view_func)
-        ):
-            raise ValueError(
-                f"You should provide positional parameters such as {','.join(route.argument_converters.keys())}."
-                f" or provide a keyword variable parameter to the view function '{view_func.__name__}'")
-        self.route_path_set.add(route_path)
-        self._routes.append(route)
-        self.endpoint_func_dic[route.endpoint] = view_func
 
     def match(self):
         """
@@ -70,9 +54,10 @@ class Router:
             # 获取路由未构建时的路径
             route_path = route.route_path
             # 获取视图函数
-            view_func = router.endpoint_func_dic.get(route.endpoint)
-            # 添加到主路由中
-            self.add_route(route_path, route, view_func)
+            callback = router.endpoint_func_dic.get(route.endpoint)
+            self.route_path_set.add(route_path)
+            self._routes.append(route)
+            self.endpoint_func_dic[route.endpoint] = callback
 
     def url_reflect(self, endpoint: str, **arguments):
         for route in self.routes:
@@ -81,6 +66,86 @@ class Router:
             except exceptions.ReflectNotFound:
                 pass
         raise exceptions.ReflectNotFound(endpoint, **arguments)
+
+    def adapt_view_func(self, callback: ViewType, methods):
+        # 利用inspect 检查是否为类或者函数
+        if inspect.isclass(callback) and issubclass(callback, View):  # noqa
+            # 当视图为 View 视图的子类时 methods 应该为None
+            if methods is not None:
+                raise ValueError(f'The methods parameter should not be passed in when using class view {callback}')
+            view = callback()
+            methods_list = view.get_view_methods
+        elif inspect.isfunction(callback):
+            view = callback
+            methods_list = methods
+        else:
+            raise ValueError(
+                f'View-function should be a function or subclass of "View" instead of {type(callback).__name__}')
+
+        return view, methods_list
+
+    def check_view_parameters(self):
+        pass
+
+    def route(
+            self,
+            route_path: str,
+            methods: t.Optional[t.List[HTTP_METHOD_TYPE]] = None,
+            endpoint: t.Optional[str] = None
+    ):
+        def inner(callback: ViewType):
+            # route_path必须以/开头
+            assert route_path.startswith(
+                '/'), f'The route "{route_path}" of the {callback!r} view should start with "/"'
+            ep = endpoint or callback.__name__
+            # 不能存在两个相同的路由路径
+            if route_path in self.route_path_set:
+                raise ValueError('"%s" This route path is already in the router.' % route_path)
+            # 不能存在相同的endpoint
+            if self.endpoint_func_dic.get(ep, None):
+                raise ValueError('"%s" This endpoint is already in the router.' % ep)
+            # 适配类视图和函数视图
+            callback, method_list = self.adapt_view_func(callback, methods)
+            route = Route(route_path, methods, endpoint=ep)
+            if (
+                    not contain_arguments(callback, route.argument_converters.keys())
+                    and
+                    not has_key_word_argument(callback)
+            ):
+                raise ValueError(
+                    f"You should provide positional parameters such as {','.join(route.argument_converters.keys())}."
+                    f" or provide a keyword variable parameter to the view function '{callback.__name__}'")
+            self.route_path_set.add(route_path)
+            self._routes.append(route)
+            self.endpoint_func_dic[ep] = callback
+
+            return callback
+
+        return inner
+
+    def get(self, route_path: str, endpoint: t.Optional[str] = None):
+        return self.route(route_path, methods=["GET"], endpoint=endpoint)
+
+    def post(self, route_path: str, endpoint: t.Optional[str] = None):
+        return self.route(route_path, methods=["POST"], endpoint=endpoint)
+
+    def put(self, route_path: str, endpoint: t.Optional[str] = None):
+        return self.route(route_path, methods=["PUT"], endpoint=endpoint)
+
+    def delete(self, route_path: str, endpoint: t.Optional[str] = None):
+        return self.route(route_path, methods=["DELETE"], endpoint=endpoint)
+
+    def head(self, route_path: str, endpoint: t.Optional[str] = None):
+        return self.route(route_path, methods=["HEAD"], endpoint=endpoint)
+
+    def patch(self, route_path: str, endpoint: t.Optional[str] = None):
+        return self.route(route_path, methods=["PATCH"], endpoint=endpoint)
+
+    def options(self, route_path: str, endpoint: t.Optional[str] = None):
+        return self.route(route_path, methods=["OPTIONS"], endpoint=endpoint)
+
+    def trace(self, route_path: str, endpoint: t.Optional[str] = None):
+        return self.route(route_path, methods=["TRACE"], endpoint=endpoint)
 
     def __str__(self):
         return '\n'.join(

@@ -53,13 +53,13 @@ class BaseRoute:
     def __init__(self, route_path: str, methods: list, endpoint: str, *args, **kwargs):
         self.route_pattern = None  # 解析后的路由规则
         self.route_path = route_path  # 用户定义的路由规则
-        self.methods = self.__parse_methods(methods)  # 路由的method
         self.endpoint = endpoint  # 端点
         self.regex_list = []
         # 转换器类型
         self.converters = get_converters()
         # 参数所对应的转换器
         self.argument_converters = {}
+        self.methods = self.__parse_methods(methods)  # 路由的method
         # 构建正则
         self.setup()
 
