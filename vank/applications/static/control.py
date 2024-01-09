@@ -32,3 +32,7 @@ def get_file(if_modify_since: str, fp: str):
         if _is_file_modified(if_modify_since, last_modify_time):
             return ResponsePlain(status=304)
     return ResponseFile(filepath=full_path.as_posix())
+
+
+async def return_file(filepath):
+    pass

@@ -1,10 +1,10 @@
 from vank.core.config import conf
 from vank.core.context.current import request
-from vank.middleware.base import BaseMiddleware
+from vank.middleware.base import Middleware
 from vank.core.http.response import ResponsePlain, Response400
 
 
-class CorsMiddleware(BaseMiddleware):
+class CorsMiddleware(Middleware):
     """解决跨域问题的中间件"""
     max_age: int = conf.CORS_MAX_AGE
     with_credentials: bool = conf.WITH_CREDENTIALS

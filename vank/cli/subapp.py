@@ -7,21 +7,36 @@ import sys
 
 from vank.utils.cli import BaseCommand
 
+try:
+    import pydantic
+except Exception as e:
+    HAVE_PYDANTIC = False
+else:
+    HAVE_PYDANTIC = True
+
 control_template = """"""
 views_template = """
 from vank.core import SubApplication, request, response
 
 {name}_sub = SubApplication('{name}')
 
-# 在此编写你的视图
+# Type your view code here
 
 """
 init_template = """"""
+schema_template = """
+from pydantic import BaseModel
+
+# Type your schema code here
+
+"""
 subapp_files = {
     'control.py': control_template,
     'views.py': views_template,
     '__init__.py': init_template
 }
+if HAVE_PYDANTIC:
+    subapp_files["schema.py"] = schema_template
 
 
 class Command(BaseCommand):

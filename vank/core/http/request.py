@@ -1,99 +1,58 @@
 import json
 import typing as t
-from cgi import parse_header
-from http.cookies import SimpleCookie
+from vank.types import HTTPMethod
+from functools import cached_property
 from urllib.parse import unquote_plus, parse_qsl
 from vank.utils.parsers import FormParser, MultiPartFormParser
 from vank.utils.datastructures import Form, Headers, QueryString
+from vank.core.http.abs import RequestLine, RequestBody, RequestHeader
 
 
-class BaseRequest:
+class WSGIRequest(RequestLine, RequestHeader, RequestBody):
     def __init__(self, environ: dict):
-        self.environ: dict = environ
-        self._json: t.Union[None, t.Dict[str, t.Any]] = None
-        self._form: t.Union[None, Form] = None
-        self._content_type: t.Union[None, str] = None
-        self._content_params: t.Union[None, dict] = None
-        self._path: t.Union[None, str] = None
-        self._stream: t.Union[None, bytes] = None
-        self._method: t.Union[None, str] = None
-        self._headers: t.Union[None, Headers] = None
-        self._cookies: t.Union[None, SimpleCookie] = None
-        self._query: t.Union[None, QueryString] = None
+        self.environ = environ
 
-    @property
+    @cached_property
     def headers(self) -> Headers:
-        if getattr(self, '_headers') is None:
-            self._headers = Headers(parse_headers(environ=self.environ))
-        return self._headers
+        raw = []
+        for key, val in self.environ.items():
+            if key.startswith("HTTP_") or key.upper() in ['CONTENT_TYPE', 'CONTENT_LENGTH']:
+                raw.append((key.split("HTTP_", 1)[-1], val))
+        return Headers(raw)
 
-    @property
+    @cached_property
+    def method(self) -> HTTPMethod:
+        return self.environ.get('REQUEST_METHOD', "").upper()
+
+    @cached_property
     def path(self) -> str:
-        """
-        获取请求路径
-        :return:
-        """
-        if self._path is None:
-            path_info = self.environ.get('PATH_INFO', '/').encode('latin-1').decode()
-            self._path = unquote_plus(path_info, self.charset, 'replace')
-        return self._path
-
-    def _set_up_content_type(self):
-        self._content_type, self._content_params = parse_header(self.headers.get('CONTENT_TYPE', ''))
+        path_info = self.environ.get('PATH_INFO', '/').encode('latin-1').decode()
+        return unquote_plus(path_info, self.charset, 'replace')
 
     @property
-    def content_params(self) -> dict:
-        """
-        获取content-type后的options
-        :return:
-        """
-        if self._content_params is None:
-            self._set_up_content_type()
-        return self._content_params
+    def body(self):
+        if not hasattr(self, "_body"):
+            self._body: bytes = self.environ.get('wsgi.input').read(self.content_length)
+        return self._body
 
-    @property
-    def content_type(self) -> str:
-        """
-        获取content-type
-        :return:
-        """
-        if self._content_type is None:
-            self._set_up_content_type()
-        return self._content_type
+    def json(self, raise_error=False) -> t.Any:
+        if not hasattr(self, "_json"):
+            try:
+                self._json = json.loads(self.body)
+            except Exception as e:
+                if raise_error: raise e
+                self._json = None
 
-    @property
-    def stream(self) -> bytes:
-        """
-        读取字节流
-        :return:
-        """
-        if self._stream is None:
-            self._stream = self.environ.get('wsgi.input').read(self.content_length)
-        return self._stream
-
-    @property
-    def json(self) -> t.Any:
-        """
-        解析body
-        :return:
-        """
-        if self._json is None:
-            if self.content_type.lower() == 'application/json':
-                self._json = json.loads(self.stream) or None
         return self._json
 
     @property
     def form(self) -> Form:
-        """
-        表单
-        :return:
-        """
-        if self._form is None:
+        if not hasattr(self, "_form"):
             if self.content_type == 'multipart/form-data':
-                parser = MultiPartFormParser(self.content_params, self.stream, self.charset)
+                parser = MultiPartFormParser(self.content_params.get("boundary"), self.body, )
                 form = parser.run()
             elif self.content_type == 'application/x-www-form-urlencoded':
-                parser = FormParser(self.stream)
+                parser = FormParser(self.body)
                 form = parser.run()
             else:
                 form = Form()
@@ -101,111 +60,109 @@ class BaseRequest:
         return self._form
 
     @property
-    def charset(self) -> str:
-        """
-        获取charset
-        :return:
-        """
-        if not hasattr(self, '_charset'):
-            setattr(self, '_charset', self.content_params.get('charset', 'utf-8'))
-        return self._charset
-
-    @property
-    def content_length(self) -> int:
-        """
-        获取到content-length
-        :return:
-        """
-        if not hasattr(self, '_content_length'):
-            content_length = self.headers.get('CONTENT_LENGTH', 0)
-            try:
-                content_length = int(content_length)
-            except Exception as e:  # noqa
-                content_length = 0
-            setattr(self, '_content_length', content_length)
-        return self._content_length  # noqa
-
-    @property
-    def method(self) -> str:
-        """
-        获取请求方法
-        :return:
-        """
-        if self._method is None:
-            self._method = self.environ.get('REQUEST_METHOD').upper()
-
-        return self._method
-
-    @property
     def query(self) -> QueryString:
-        """
-        获取URL查询参数
-        :return:
-        """
-        if self._query is None:
+        if not hasattr(self, "_query"):
             self._query = QueryString()
             qs = self.environ.get('QUERY_STRING', '').encode('latin-1').decode('utf-8')
             for key, value in parse_qsl(qs, keep_blank_values=True):
                 self.query.append_value(key, value, error=False)
+        return self._query
 
-        return self._query  # noqa
+
+class ASGIHeader(RequestHeader):
+    """
+    Common HTTP header class for ASGIRequest and Websocket
+    """
+
+    def __init__(self, scope, receive):
+        """
+        Initialize
+        :param scope: asgi scope
+        :param receive: asgi receive
+        """
+        self._scope = scope
+        self._receive = receive
+
+    @cached_property
+    def headers(self) -> Headers:
+        """
+        Generate headers for current HTTP request
+        :return: Headers object
+        """
+        return Headers([
+            (
+                header_name.decode("latin-1").upper().replace("-", "_"),
+                header_val.decode("latin-1")
+            )
+            for header_name, header_val in self._scope.get("headers", [])])
+
+
+class ASGIRequest(RequestLine, ASGIHeader, RequestBody):
+    @cached_property
+    def path(self) -> str:
+        """
+        Request path
+        :return:
+        """
+        return self._scope.get("path")
 
     @property
-    def cookies(self) -> dict:
+    async def body(self):
+        if not hasattr(self, "_body"):
+            self._body = b""
+            while 1:
+                msg = await self._receive()
+                if msg.get("type") == "http.disconnect":
+                    raise RuntimeError("The HTTP connection has been disconnected")
+                self._body += msg.get("body", b"")
+                if not msg.get("more_body", False):
+                    break
+        return self._body
+
+    async def json(self, raise_error=False) -> t.Any:
+        if not hasattr(self, "_json"):
+            body = await self.body
+            try:
+                self._json = json.loads(body)
+            except Exception as e:
+                if raise_error: raise e
+                self._json = None
+
+        return self._json
+
+    @property
+    async def form(self) -> Form:
+        if not hasattr(self, "_form"):
+            body = await self.body
+            if self.content_type == 'multipart/form-data':
+                parser = MultiPartFormParser(self.content_params.get("boundary"), body, )
+                form = parser.run()
+            elif self.content_type == 'application/x-www-form-urlencoded':
+                parser = FormParser(body)
+                form = parser.run()
+            else:
+                form = Form()
+            self._form = form
+        return self._form
+
+    @cached_property
+    def method(self) -> HTTPMethod:
         """
-        获取cookie
-        :return:
+        The method for the current HTTP request
+        :return: uppercase http method
         """
-        if self._cookies is None:
-            self._cookies = SimpleCookie(self.headers.get('COOKIE', ''))
-        return self._cookies
+        return self._scope.get("method", "").upper()
 
-    def close(self):
-        if getattr(self, '_form', None) is not None:
-            self._form.close()
-
-    def remote_address(self, pre_proxy_number=1) -> str:
+    @property
+    def query(self) -> QueryString:
         """
-        你可以通过设置pre_proxy_number（反向代理服务器数量）获取客户端的ip地址；
-        详情见：https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/X-Forwarded-For
-        下面是获取客户端ip地址的取值优先级
-        1.x-forwarded-for  此项需要由反向代理服务器设置(当存在多个反向代理服务器时，x-forwarded-for减去反向代理服务器数量的最后一个为客户端ip地址)
-        2.remote-addr      此项需要由反向代理服务器设置(当只有一个反向代理服务器时，此项为与其连接的客户端的ip地址)
-        3.environ中的remote-addr 此项为与WSGI服务器连接的客户端的ip地址
-
-        :param pre_proxy_number:代理服务器数量
-        :return:
+        The query parameters for the current HTTP request
+        :return: QueryString object
         """
-        try:
-            x_forwarded_for_list = self.headers.get('X_FORWARDED_FOR', '').split(',')
-            x_forwarded_for = [item.strip() for item in x_forwarded_for_list if item.strip()]
-            if pre_proxy_number == 0:
-                return x_forwarded_for[-1]
-            real_address_index = len(x_forwarded_for) - pre_proxy_number
-            if real_address_index < 1:
-                raise IndexError
-            return x_forwarded_for[real_address_index - 1]
-        except (IndexError, AttributeError):
-            return self.headers.get('X_REMOTE_ADDR', None) or self.environ.get('REMOTE_ADDR', None)
-
-
-class Request(BaseRequest):
-    def __init__(self, environ: dict):
-        super(Request, self).__init__(environ)
-
-
-def parse_headers(environ: dict) -> tuple:
-    """
-    解析HTTP头
-    :param environ: WSGI environ
-    :return: dict
-    """
-    for header_name, header_value in environ.items():
-        # 判断是否以HTTP_开头
-        if header_name.startswith('HTTP_'):
-            header = (header_name.split('HTTP_', 1)[-1], header_value)
-        elif header_name in ['CONTENT_TYPE', 'CONTENT_LENGTH']:
-            header = (header_name, header_value)
-        else:
-            continue
-        yield header
+        if not hasattr(self, "_query"):
+            query = QueryString()
+            qs = self._scope.get("query_string", b"").decode('latin-1')
+            for key, value in parse_qsl(qs, keep_blank_values=True):
+                query.append_value(key, value, error=False)
+            self._query = query
+        return self._query

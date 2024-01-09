@@ -35,11 +35,11 @@ MIDDLEWARES = [
     'vank.middleware.session:SessionMiddleware'
 ]
 
-# 错误处理器
-ERROR_HANDLER = 'vank.core.handlers.exception:default_handler'
+# 指定Application
+APPLICATION_CLASS = "vank.core.application.wsgi:WSGIApplication"
 
-# 处理静态文件(生产环境请设置为False)
-USE_STATIC = True
+# 异常转换器
+ERROR_CONVERTER = 'vank.core.handlers.exception:default_exception_converter'
 
 # 静态文件URL
 STATIC_URL = '/static'
@@ -111,7 +111,7 @@ from vank.core import Application, request, response
 app = Application()
 
 
-@app.new_route('/')
+@app.route('/', methods=['GET'])
 def say_hi(*args, **kwargs):
     return response.ResponsePlain(f'Hi,your request path is {request.path}')
 

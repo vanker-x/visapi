@@ -1,0 +1,1 @@
+::: vank.core.application.wsgi.WSGIApplication

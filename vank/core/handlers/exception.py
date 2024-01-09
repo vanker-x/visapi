@@ -1,32 +1,40 @@
-from vank.core.http import response
-from vank.core.exceptions import *
 from logging import getLogger
+from vank.core.exceptions import *
+from vank.core.http import response
+from vank.utils.coroutine_function import is_coroutine_function
 
 logger = getLogger('server')
 
 
-def conv_exc_to_response(get_response_func, error_handler):
+def conv_exc_to_response(fn, exception_converter):
     """
-    全局的捕获异常,将异常转换为对应的response
-    :param get_response_func: 获取reponse的函数 当存在中间件时 该参数为上一个中间件 不存在时 为 APP实例下的__get_response方法
-    :param error_handler: 处理错误的处理器
-    :return:
+    Global exception catcher, which can convert exceptions into response objects.
+    :param fn: the callable object wrapped by the catcher
+    :param exception_converter: converter for converting exception
+    :return: response
     """
 
     def inner(*args, **kwargs):
         try:
-            return get_response_func(*args, **kwargs)
+            return fn(*args, **kwargs)
         except Exception as e:
-            return error_handler(e)
+            return exception_converter(e)
 
-    return inner
+    async def ainner(*args, **kwargs):
+        try:
+            return await fn(*args, **kwargs)
+        except Exception as e:
+            return exception_converter(e)
+
+    return ainner if is_coroutine_function(fn) else inner
 
 
-def default_handler(exc):
+def default_exception_converter(exc):
     """
-    错误处理器 根据对应的错误返回对应的Response 如果未找到对应错误 默认返回 Response 500
-    :param exc: Exception对象
-    :return: Response
+    The exception converter returns exception-based response, and
+    if an unexpected exception is received, a 500 response will be returned
+    :param exc: exception
+    :return: response
     """
     if isinstance(exc, NotFoundException):
         resp = response.Response404()

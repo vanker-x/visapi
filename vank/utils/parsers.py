@@ -5,7 +5,7 @@ from vank.utils.datastructures import Form, SpooledUploadFile
 
 class ParseException(Exception):
     """
-    解析时异常
+    Exception during parsing
     """
 
 
@@ -32,11 +32,11 @@ class MultiPartFormParser:
     def __init__(self, boundary: t.Union[str, bytes], body: bytes):
         """
         initialize parser
-        :param boundary: the sep of each parts
+        :param boundary: the sep of each part
         :param body: bytes body
         """
         self.body = body
-        self.boundary = boundary
+        self.boundary = boundary if isinstance(boundary, bytes) else boundary.encode()
 
     def run(self):
         """

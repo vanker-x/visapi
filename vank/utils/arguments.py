@@ -7,11 +7,11 @@ def _get_object_argument_inspections(obj) -> MappingProxyType[str, inspect.Param
     return inspect.signature(obj).parameters
 
 
-def has_key_word_argument(obj) -> bool:
+def accept_var_key_word_argument(obj: callable) -> bool:
     """
-    检测接收的参数中是否含有类型为关键字可变参数
-    :param obj:
-    :return:
+    Check if the parameters received by obj contain keyword variable parameter like **kwargs
+    :param obj: callable
+    :return: boolean
     """
     for key, value in _get_object_argument_inspections(obj).items():
         if value.kind == inspect.Parameter.VAR_KEYWORD:
@@ -19,11 +19,11 @@ def has_key_word_argument(obj) -> bool:
     return False
 
 
-def has_var_positional_argument(obj) -> bool:
+def accept_var_positional_argument(obj: callable) -> bool:
     """
-    检测接收的参数中是否含有类型为可变参数
-    :param obj:
-    :return:
+    Check if the parameters received by obj contain variable positional parameter like *args
+    :param obj: callable
+    :return: boolean
     """
     for key, value in _get_object_argument_inspections(obj).items():
         if value.kind == inspect.Parameter.VAR_POSITIONAL:
@@ -31,21 +31,41 @@ def has_var_positional_argument(obj) -> bool:
     return False
 
 
-def contain_arguments(obj, names: t.List[str]) -> bool:
+def accept_variable_argument(obj: callable) -> bool:
     """
-    检测接收的参数是否为names的超集
-    :param names:
-    :param obj:
-    :return:
+    Check if obj receives variable parameter like *args or **kwargs
+    :param obj: callable
+    :return: boolean
+    """
+    return accept_var_positional_argument(obj) and accept_var_positional_argument(obj)
+
+
+def accept_arguments(obj: callable, names: t.List[str]) -> bool:
+    """
+    Check if the received parameters are a superset of names
+    :param obj: callable
+    :param names: a list of parameter string
+    :return: boolean
     """
     return set(_get_object_argument_inspections(obj).keys()).issuperset(names)
 
 
-def has_argument(obj, name: str) -> bool:
+def accept_argument(obj: callable, name: str) -> bool:
     """
-    检测接收的参数中是否含有name
-    :param obj:
-    :param name:
-    :return:
+    Check if the parameters received by obj contain name
+    :param obj: callable
+    :param name: accept argument name
+    :return: boolean
     """
-    return contain_arguments(obj, [name])
+    return accept_arguments(obj, [name])
+
+
+def only_accept_argument(obj: callable, name: str) -> bool:
+    """
+    Check if obj only accepts the name parameter
+    :param obj: callable
+    :param name: accept argument name
+    :return: boolean
+    """
+    length = 2 if inspect.ismethod(obj) else 1
+    return len(_get_object_argument_inspections(obj).keys()) == length and accept_argument(obj, name)

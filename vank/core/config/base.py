@@ -12,8 +12,8 @@ class BaseSettings:
     ROUTE_CONVERTERS = {}
     # 中间件
     MIDDLEWARES = []
-    # 错误处理器
-    ERROR_HANDLER = ""
+    # 异常转换器
+    ERROR_CONVERTER = ""
     # 日志
     LOGGING = {}
     # 子应用
@@ -84,6 +84,9 @@ class BaseSettings:
 
     # max-age
     CORS_MAX_AGE = 500
+
+    # application class
+    APPLICATION_CLASS = None
 
 
 def check_secret_key(sender, *args, **kwargs):

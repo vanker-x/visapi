@@ -4,11 +4,11 @@ from http.cookies import Morsel
 from vank.core.config import conf
 from vank.core.context.current import request
 from vank.utils.datastructures import Session
-from vank.middleware.base import BaseMiddleware
+from vank.middleware.base import Middleware
 from itsdangerous import TimestampSigner, BadSignature
 
 
-class SessionMiddleware(BaseMiddleware):
+class SessionMiddleware(Middleware):
     def __init__(self, get_response_callable):
         super(SessionMiddleware, self).__init__(get_response_callable)
         self.signer = TimestampSigner(conf.SECRET_KEY)

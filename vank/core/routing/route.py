@@ -1,12 +1,11 @@
-# @filename: route.py
-# @Time:    2022/7/26-0:33
-# @Author:  vank
 import re
-import inspect
+import typing as t
 from urllib.parse import quote
 from functools import lru_cache
 from vank.core import exceptions
 from vank.core.config import conf
+from vank.types import HTTPMethod
+from vank.utils.locator import get_obj_file
 from vank.utils.load_module import import_from_str
 
 # 构建路由正则
@@ -15,12 +14,18 @@ build_route_regex_pattern = re.compile(
 )
 
 
-def parse_route_rule(rule):
+def parse_route_path(route_path: str):
+    """
+    Yield a tuple containing static part,variable name and converter name,
+    and finally yield the remaining part
+    :param route_path: route path rule
+    :return:
+    """
     start = 0
-    end = len(rule)
+    end = len(route_path)
     while start < end:
         # 通过语法正则匹配出动态路由
-        res = build_route_regex_pattern.search(rule, start)
+        res = build_route_regex_pattern.search(route_path, start)
         # 如果没有匹配出结果、说明剩余的字符串是静态的
         if not res:
             break
@@ -29,16 +34,17 @@ def parse_route_rule(rule):
         start = res.end()
     # 拼接剩余静态路由
     if start < end:
-        legacy_route = rule[start:]
+        legacy_route = route_path[start:]
         if '{' in legacy_route or '}' in legacy_route:
             raise SyntaxError('Incorrect routing syntax.Should not appear single "{" or "}"')
         yield legacy_route, None, None
 
 
 @lru_cache(maxsize=None)
-def get_converters():
+def get_converters() -> dict:
     """
-    获取路由转换器
+    Get a dict of converters
+    :return: dict of converters
     """
     convert_dict = dict()
     for converter_name, convert_module_path in conf.ROUTE_CONVERTERS.items():
@@ -50,39 +56,24 @@ def get_converters():
 
 
 class BaseRoute:
-    def __init__(self, route_path: str, methods: list, endpoint: str, *args, **kwargs):
+    protocol: str = None
+
+    def __init__(self, route_path: str, endpoint: str, callback: callable):
+        self.callback = callback
+        self.endpoint = endpoint
         self.route_pattern = None  # 解析后的路由规则
         self.route_path = route_path  # 用户定义的路由规则
-        self.endpoint = endpoint  # 端点
         self.regex_list = []
-        # 转换器类型
         self.converters = get_converters()
-        # 参数所对应的转换器
         self.argument_converters = {}
-        self.methods = self.__parse_methods(methods)  # 路由的method
-        # 构建正则
         self.setup()
-
-    def __parse_methods(self, methods: list):
-        if not methods:
-            return ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"]
-        methods_upper = [method.upper() for method in methods]
-        if not set(methods_upper) < {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"}:
-            raise ValueError(f'"{self.endpoint}"Binding failed, there are non HTTP request methods present')
-        return methods_upper
-
-    def __get_converter_list(self):
-        """
-        获取所有转换器的列表
-        """
-        return self.converters.keys()
 
     def setup(self):
         """
-        创建一条属于这条路由的正则
+        Build a regular object based on route path rule
         :return:
         """
-        for static_route, variable, converter_name in parse_route_rule(self.route_path):
+        for static_route, variable, converter_name in parse_route_path(self.route_path):
             # 需要将静态路径escape防止出现转义安全问题
             # 例如 直接拼接'/foo.bar'这段规则到路由正则中，那么匹配'/fooobar'也能通过匹配,这是不合法的
             self.regex_list.append(re.escape(static_route))
@@ -102,27 +93,32 @@ class BaseRoute:
 
         self.route_pattern = re.compile(regex)
 
+    def get_converter_list(self):
+        """
+        Get a list of all converter keys
+        :return: list of converter keys
+        """
+        return list(self.converters.keys())
+
     def convert_arguments(self, **arguments):
         """
-        将变量转换为对应的类型
-        例如:将整数字符串转换为int类型
+        Convert the string to the corresponding type through the corresponding converter
+        :param arguments:
+        :return: converted arguments
         """
         for arg_name, arg_value in arguments.items():
             new_value = self.argument_converters[arg_name].convert_to_python(arg_value)
             arguments.update({arg_name: new_value})
         return arguments
 
-
-class Route(BaseRoute):
-    def __init__(self, route_path, methods, endpoint, *args, **kwargs):
-        super(Route, self).__init__(route_path, methods, endpoint, *args, **kwargs)
-
-    def check_method(self, request_method):
-        return request_method.upper() in self.methods
-
     def url_reflect(self, endpoint: str, **arguments):
         """
-        根据endpoint查找对应的url
+        Find the corresponding routing rule based on the endpoint,
+        and construct a URL string where arguments must be a superset of the required parameters
+        for the corresponding routing rule.and any excess parameters will be concatenated into the query parameters
+        :param endpoint:
+        :param arguments:
+        :return:
         """
         # 根据endpoint反向构建url、并且传入的arguments必须为该路由所需的可变路由参数的超集
         if not endpoint == self.endpoint or not set(arguments.keys()).issuperset(self.argument_converters.keys()):
@@ -144,17 +140,44 @@ class Route(BaseRoute):
         return quote(url, safe="/#%[]=:;$&()+,!?*@'~")
 
     def __str__(self):
-        return '<{cls_name}>:"{route_path}" <==> "{endpoint}"'.format(
+        return '<{cls_name}>: "{route_path}" <=> "{endpoint}" <=> {callback} <=> {file_at}'.format(
             route_path=self.route_path,
             cls_name=self.__class__.__name__,
             regex=self.route_pattern,
-            endpoint=self.endpoint
+            endpoint=self.endpoint,
+            callback=self.callback,
+            file_at=get_obj_file(self.callback),
         )
 
     def __repr__(self):
-        return '<{cls_name}>:"{route_path}" <==> "{endpoint}"'.format(
+        return '<{cls_name}>: "{route_path}" <=> "{endpoint}" <=> {callback} <=> {file_at}'.format(
             route_path=self.route_path,
             cls_name=self.__class__.__name__,
             regex=self.route_pattern,
-            endpoint=self.endpoint
+            endpoint=self.endpoint,
+            callback=self.callback,
+            file_at=get_obj_file(self.callback),
         )
+
+
+class Route(BaseRoute):
+    protocol = "http"
+
+    def __init__(self, route_path: str, methods: t.List[HTTPMethod], endpoint: str, callback: callable):
+        super(Route, self).__init__(route_path, endpoint, callback)
+        self.methods = methods
+
+    def check_method(self, method: HTTPMethod) -> bool:
+        """
+        Determine whether the route allows this method
+        :param method: http request method
+        :return: boolean value
+        """
+        return method.upper() in self.methods
+
+
+class WebsocketRoute(BaseRoute):
+    protocol = "websocket"
+
+    def __init__(self, route_path: str, endpoint: str, callback: callable):
+        super().__init__(route_path, endpoint, callback)

@@ -1,7 +1,9 @@
+import inspect
 import math
 import operator
 import typing as t
 from contextvars import ContextVar
+from functools import wraps
 
 unbound = object()
 
@@ -119,3 +121,53 @@ class ContextProxy:
     __subclasscheck__ = context_proxy_method(lambda obj, other: issubclass(other, obj))
     __class__ = property(
         context_proxy_method(lambda obj: type(obj), on_failed=not_bound_yet))
+
+
+def auto_reset(setup: callable):
+    """
+    auto reset context variable decorator
+    :param setup: This parameter is a callable object used to bind the context object,
+     and should return a bound context token and a context proxy object
+    :return: fn(*args,**kwargs)
+    """
+
+    def outer(fn: callable):
+        @wraps(fn)
+        def inner(*args, **kwargs):
+            """
+            wrap sync function
+            :param args:
+            :param kwargs:
+            :return:
+            """
+            token, ctx = setup(*args, **kwargs)
+            try:
+                res = fn(*args, **kwargs)
+            except Exception as e:
+                raise e
+            finally:
+                if token is not None:
+                    ctx._wrapped.reset(token)  # noqa
+            return res
+
+        @wraps(fn)
+        async def ainner(*args, **kwargs):
+            """
+            wrap async function
+            :param args:
+            :param kwargs:
+            :return:
+            """
+            token, ctx = setup(*args, **kwargs)
+            try:
+                res = await fn(*args, **kwargs)
+            except Exception as e:
+                raise e
+            finally:
+                if token is not None:
+                    ctx._wrapped.reset(token)  # noqa
+            return res
+
+        return ainner if inspect.iscoroutinefunction(fn) else inner
+
+    return outer

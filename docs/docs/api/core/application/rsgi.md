@@ -1,0 +1,1 @@
+::: vank.core.application.rsgi.RSGIApplication

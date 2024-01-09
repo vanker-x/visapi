@@ -11,17 +11,18 @@ authors = [
 description = "A Python Web Framework"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "itsdangerous==2.1.2"
+    "itsdangerous==2.1.2",
+    "asgiref==3.7.2"
 ]
 [project.urls]
-"Homepage" = "https://github.com/Vank-WebFramework/Vank"
+"Homepage" = "https://github.com/vanker-x/Vank"
 "Documents" = "http://docs.bestvank.cn/"
 
 [project.entry-points.console_scripts]

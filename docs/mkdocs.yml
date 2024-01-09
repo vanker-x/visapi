@@ -1,0 +1,112 @@
+site_name: Vank
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: 切换到暗黑模式
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: 切换到明亮模式
+  features:
+    - navigation.tracking
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.path
+    - navigation.top
+    - content.code.copy
+    - toc.integrate
+    - content.code.annotate
+
+  icon:
+    repo: fontawesome/brands/github
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+  custom_dir: overrides
+nav:
+  - 首页:
+      - 概览: index.md
+      - 什么是WSGI?: what_is_wsgi.md
+
+  - '指南':
+      - 安装: guid/installation.md
+      - 教程:
+          - 初始化你的项目: guid/tutorial/initialization.md
+          - 配置: guid/tutorial/settings.md
+          - 路由: guid/tutorial/route.md
+          - 中间件: guid/tutorial/middleware.md
+          - 子应用: guid/tutorial/subapplication.md
+          - 使用SQLAlchemy: guid/tutorial/sqlalchemy.md
+      - 部署: guid/deploy.md
+      - Tips: guid/tips.md
+  - '接口':
+      - 核心:
+          - 路由:
+              - router: api/core/routing/router.md
+              - route: api/core/routing/route.md
+              - converter: api/core/routing/converter.md
+          - 应用:
+              - ASGI: api/core/application/asgi.md
+              - WSGI: api/core/application/wsgi.md
+              - RSGI: api/core/application/rsgi.md
+              - BASE: api/core/application/base.md
+          - HTTP:
+              - request: api/core/http/request.md
+              - response: api/core/http/response.md
+markdown_extensions:
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+
+
+repo_url: https://github.com/vanker-x/Vank
+repo_name: Vank
+#自定义css
+extra_css:
+  - stylesheets/extra.css
+copyright: <a href="https://beian.miit.gov.cn">黔ICP备2022008767号-1</a>
+extra:
+  generator: false
+
+plugins:
+  - search
+  - autorefs
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - ../../
+          options:
+            allow_inspection: true
+            show_bases: true
+            show_source: true
+            show_root_heading: true
+            show_root_toc_entry: true
+            show_root_full_path: true
+            docstring_style: sphinx
+            show_submodules: true
+            inherited_members: true
+            summary: true
+            docstring_section_style: table
+            filters: []
+            show_if_no_docstring: true
+            annotations_path: source
+            separate_signature: true
+            show_signature_annotations: true
+            members_order: source
+
+
+
+
+
