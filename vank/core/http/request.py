@@ -35,13 +35,13 @@ class WSGIRequest(RequestLine, RequestHeader, RequestBody):
             self._body: bytes = self.environ.get('wsgi.input').read(self.content_length)
         return self._body
 
-    def json(self, raise_error=False) -> t.Any:
+    def json(self, error_factory=None) -> t.Any:
         if not hasattr(self, "_json"):
             try:
                 self._json = json.loads(self.body)
             except Exception as e:
-                if raise_error: raise e
-                self._json = None
+                if error_factory is None: raise e
+                self._json = error_factory()
 
         return self._json
 
@@ -65,7 +65,7 @@ class WSGIRequest(RequestLine, RequestHeader, RequestBody):
             self._query = QueryString()
             qs = self.environ.get('QUERY_STRING', '').encode('latin-1').decode('utf-8')
             for key, value in parse_qsl(qs, keep_blank_values=True):
-                self.query.append_value(key, value, error=False)
+                self.query.append(key, value)
         return self._query
 
 
@@ -86,7 +86,7 @@ class ASGIHeader(RequestHeader):
     @cached_property
     def headers(self) -> Headers:
         """
-        Generate headers for current HTTP request
+        Generate headers for a current HTTP request
         :return: Headers object
         """
         return Headers([
@@ -119,14 +119,14 @@ class ASGIRequest(RequestLine, ASGIHeader, RequestBody):
                     break
         return self._body
 
-    async def json(self, raise_error=False) -> t.Any:
+    async def json(self, error_factory=None) -> t.Any:
         if not hasattr(self, "_json"):
             body = await self.body
             try:
                 self._json = json.loads(body)
             except Exception as e:
-                if raise_error: raise e
-                self._json = None
+                if error_factory is None: raise e
+                self._json = error_factory()
 
         return self._json
 
@@ -163,6 +163,6 @@ class ASGIRequest(RequestLine, ASGIHeader, RequestBody):
             query = QueryString()
             qs = self._scope.get("query_string", b"").decode('latin-1')
             for key, value in parse_qsl(qs, keep_blank_values=True):
-                query.append_value(key, value, error=False)
+                query.append(key, value)
             self._query = query
         return self._query

@@ -84,9 +84,9 @@ class MultiPartFormParser:
                 field_value.write(content)
                 field_value.seek(0)
             else:
-                # process other field
+                # process another field
                 field_value = content.decode('utf-8')
-            form.append_value(field_name, field_value, error=False)
+            form.append(field_name, field_value)
         return form
 
 
@@ -101,5 +101,5 @@ class FormParser:
     def run(self):
         form = Form()
         for key, value in parse_qsl(self.body.decode("latin1"), keep_blank_values=False):
-            form.append_value(key, value, error=False)
+            form.append(key, value)
         return form

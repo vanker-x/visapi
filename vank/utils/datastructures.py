@@ -1,11 +1,11 @@
-import copy
 import tempfile
 import typing as t
+from itertools import chain
 
 
 class SpooledUploadFile:
     """
-    利用内置库tempfile的SpooledTemporaryFile;当文件超过特定大小时，将其写到磁盘
+    Specialized to switch BytesIO or StringIO to a real file when it exceeds max_size
     """
 
     def __init__(self, filename, content_type, headers):
@@ -15,18 +15,42 @@ class SpooledUploadFile:
         self.file = tempfile.SpooledTemporaryFile(max_size=1024 * 1024)
 
     def write(self, data: bytes):
+        """
+        Proxy method for SpooledTemporaryFile.write
+        :param data: byte data
+        :return:
+        """
         self.file.write(data)
 
     def read(self, size: int = -1) -> bytes:
+        """
+        Proxy method for SpooledTemporaryFile.read
+        :param size:
+        :return:
+        """
         return self.file.read(size)
 
-    def seek(self, offset):
-        self.file.seek(offset)
+    def seek(self, offset: int, whence: t.Optional[int] = 0):
+        """
+        Proxy method for SpooledTemporaryFile.seek
+        :param offset: same as BytesIO
+        :param whence: same as BytesIO
+        :return:
+        """
+        self.file.seek(offset, whence)
 
     def close(self):
+        """
+        Proxt method for SpooledTemporaryFile.close
+        :return:
+        """
         self.file.close()
 
     def tell(self):
+        """
+        Return the current position.
+        :return:
+        """
         return self.file.tell()
 
     def __str__(self):
@@ -37,66 +61,42 @@ class SpooledUploadFile:
 
 
 class MultiValueDict(dict):
+    def __init__(self, raw: t.Optional[t.Iterable] = None, /, **kwargs):
+        if raw:
+            if not isinstance(raw, (list, tuple, set)):
+                raise ValueError("positional only argument must be (key, value) pairs of list, tuple or set")
+            [self[key].append(val) for key, val in raw]
+        [self[key].append(val) for key, val in kwargs.items()]
 
-    def get(self, key, default: t.Optional = None):
-        val = super().get(key)
-        return val[-1] if val else default
+    def get(self, key, default=None):
+        if not (data := self[key]):
+            return default
+        return data[-1]
 
-    def keys(self):
-        yield from self
+    def get_all(self, key, default=None):
+        if not (data := self[key]):
+            return default
+        return data
 
-    def items(self):
-        for key in self:
-            yield key, self[key]
+    def append(self, key, value):
+        self[key].append(value)
+        return self
 
-    def values(self):
-        for key in self:
-            yield self[key]
-
-    def get_all(self, key, default: t.Optional[t.Any] = None, t_class: t.Optional[t.Type] = list):
-        try:
-            val = super().__getitem__(key)
-        except KeyError:
-            val = default
-        else:
-            val = t_class(val)
-
-        return val
-
-    def copy(self):
-        return copy.copy(self)
-
-    def setlist(self, key, value: t.List):
-        """
-        设置一个list，这将覆盖原有的key对应的值
-        @param key:
-        @param value:
-        @return:
-        """
-        super().__setitem__(key, value)
-
-    def append_value(self, key, value, error=True):
-        try:
-            val = self[key]
-        except KeyError:
-            if error:
-                raise
-            super().__setitem__(key, [value])
-        else:
-            val.append(value)
+    def pop_value(self, key, index):
+        return self[key].pop(index)
 
     def __setitem__(self, key, value):
-        super().__setitem__(key, [value])
+        super().__setitem__(key, [value] if not isinstance(value, (list, tuple, set)) else [*value])
 
-    def __getitem__(self, item):
-        val = super().__getitem__(item)
-        try:
-            return val[-1]
-        except IndexError:
-            return val
+    def __missing__(self, key):
+        self[key] = []
+        return self[key]
 
-    def __copy__(self):
-        return self.__class__((k, self.get_all(k)[:]) for k in self)
+    def __repr__(self):
+        return f"{self.__class__.__name__}:{super().__repr__()}"
+
+    def __str__(self):
+        return f"{self.__class__.__name__}:{super().__str__()}"
 
 
 class Form(MultiValueDict):
@@ -105,7 +105,7 @@ class Form(MultiValueDict):
     """
 
     def close(self):
-        [item.close() for item in self.values() if isinstance(item, SpooledUploadFile)]
+        [item.close() for item in chain(*self.values()) if isinstance(item, SpooledUploadFile)]
 
 
 class QueryString(MultiValueDict):
@@ -146,17 +146,18 @@ class Headers:
     def add(self, key, value):
         self._list.append((key.encode('latin-1'), value.encode('latin-1')))
 
-    def setdefault(self, key, value):
+    def setdefault(self, key, default):
         # not in self 会调用__contains__魔术方法
         if key not in self:
-            self._list.append((key.encode('latin-1'), value.encode('latin-1')))
+            self._list.append((key.encode('latin-1'), default.encode('latin-1')))
+            return default
+        else:
+            return self.get(key)
 
     def update(self, key, value):
         for index, item in enumerate(self._list):
             if item[0].decode('latin-1').lower() == key.lower():
                 self._list[index] = (key.encode('latin-1'), value.encode('latin-1'))
-        else:
-            self.setdefault(key, value)
 
     def remove(self, key):
         # 使用[:]可以创建一个新的对象

@@ -96,7 +96,7 @@ class RequestBody(ABC):
 
     @property
     @abstractmethod
-    def json(self, raise_error=False) -> t.Any:
+    def json(self, error_factory: t.Optional[t.Any] = None) -> t.Any:
         ...
 
     @property

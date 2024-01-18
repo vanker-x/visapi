@@ -12,6 +12,7 @@ class WebSocketState(IntEnum):
     The state of the websocket connection lifecycle, each state
     will be presented in the tuple of (state value, phrase, [allowed ASGI types])
     """
+
     def __new__(cls, value: int, phrase, allowed_type=None):
         obj = int.__new__(cls, value)
         obj._value_ = value
@@ -94,6 +95,7 @@ class WebSocket(ASGIHeader):
         :return:
         """
         return self._scope.get("path")
+
     @property
     def is_closed(self) -> bool:
         """
@@ -110,7 +112,6 @@ class WebSocket(ASGIHeader):
         """
         self.state = WebSocketState.Connecting
         message = await self.recv()
-        self.state = WebSocketState.Connected
         return message
 
     @_state_expection_wrapper(WebSocketState.Connected)
@@ -145,6 +146,8 @@ class WebSocket(ASGIHeader):
         if message.get("type") == "websocket.disconnect":
             self.state = WebSocketState.Closed
             raise WebsocketClosed("connection is disconnect from client")
+        elif message.get("type") == "websocket.connect":  # handle proces connect event
+            self.state = WebSocketState.Connected
         return message
 
     @_state_expection_wrapper(WebSocketState.Accepted)
