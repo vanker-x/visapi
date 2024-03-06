@@ -9,7 +9,7 @@ from vank.utils.locator import get_obj_file
 from vank.core.context.base import auto_reset
 from vank.core.http.request import ASGIRequest
 from vank.core.http.websocket import WebSocket
-from vank.core.http.response import BaseResponse
+from vank.core.http.response import Response
 from vank.core.routing.route import WebsocketRoute
 from vank.core.application.base import MiddlewareAppMixin
 from vank.core.routing.router import Router, RouteNotFound
@@ -89,7 +89,7 @@ class ASGIApplication(MiddlewareAppMixin, Router):
         else:
             callback = asgiref.sync.sync_to_async(route.callback)
         response = await callback(*args, **kwargs)
-        if not isinstance(response, BaseResponse):
+        if not isinstance(response, Response):
             raise exceptions.NoResponseException(
                 f'The callback "{route.callback}" '
                 f'at file "{get_obj_file(route.callback)}" did not return a response'
@@ -104,6 +104,7 @@ class ASGIApplication(MiddlewareAppMixin, Router):
         :param endpoint: same as route method
         :return: callback this method decorated
         """
+
         def inner(callback: callable):
             if not inspect.iscoroutinefunction(callback):
                 raise TypeError("websocket callback must be coroutine function")
@@ -124,14 +125,32 @@ class ASGIApplication(MiddlewareAppMixin, Router):
         :return:
         """
         # TODO adapt response
+        headers = response.headers.raw
+        # 设置cookie
+        headers.extend([(b"Set-Cookie", cookie.output(header="").encode("latin-1"))
+                        for cookie in response.cookies.values()])
         await send({
             'type': "http.response.start",
-            "status": response._status,
+            "status": response.status,
+            "headers": headers
         })
-        await send({
-            'type': "http.response.body",
-            'body': response.body
-        })
+        async for body in response:
+            more_body = bool(body)
+            await send({
+                'type': "http.response.body",
+                'body': body,
+                "more_body": more_body
+            })
+            if not more_body:
+                break
+        else:
+            # This statement is used to make up for sending
+            # responses with more body False
+            await send({
+                'type': "http.response.body",
+                'body': b"",
+                "more_body": False
+            })
 
     @auto_reset(lambda self, *args, **kwargs: (application._wrapped.set(self), application))  # noqa
     @auto_reset(set_websocket_ctx)

@@ -37,12 +37,12 @@ def default_exception_converter(exc):
     :return: response
     """
     if isinstance(exc, NotFoundException):
-        resp = response.Response404()
+        resp = response.NotFoundResponse()
     elif isinstance(exc, MethodNotAllowedException):
-        resp = response.Response405(exc.allow)
+        resp = response.MethodNotAllowedResponse(exc.allow)
     elif isinstance(exc, PermissionDeniedException):
-        resp = response.Response403()
+        resp = response.ForbiddenResponse()
     else:
-        resp = response.Response500()
+        resp = response.InternalServerError()
     logger.error("Error - ", exc_info=exc)
     return resp

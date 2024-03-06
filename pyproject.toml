@@ -19,7 +19,8 @@ classifiers = [
 ]
 dependencies = [
     "itsdangerous==2.1.2",
-    "asgiref==3.7.2"
+    "asgiref==3.7.2",
+    "aiofiles==23.2.1"
 ]
 [project.urls]
 "Homepage" = "https://github.com/vanker-x/Vank"

@@ -16,7 +16,7 @@ app = Application()
 
 @app.new_route('/')
 def index( *args, **kwargs):
-    return response.ResponsePlain('this is route tutorial')
+    return response.Response('this is route tutorial')
 ```
 ***
 ## 路径参数
@@ -29,7 +29,7 @@ app = Application()
 @app.new_route('/{_id:int}')
 def index(_id, *args, **kwargs):
     print(f'id是:{_id}')
-    return response.ResponsePlain(f'id是:{_id}')
+    return response.Response(f'id是:{_id}')
 
 ```
 `{_id:int}`指的是提取/后面的int类型的数据,并且以`_id`传入到中
@@ -100,7 +100,7 @@ app = Application()
 
 @app.new_route('/{_id:limited_int}')
 def index(_id, *args, **kwargs):
-    return response.ResponsePlain(f'限制长度后的int类型:{_id}')
+    return response.Response(f'限制长度后的int类型:{_id}')
 ```
 访问 [http://127.0.0.1:5000/123](http://127.0.0.1:5000/123),是可以提取到`123`的  
 但是如果访问[http://127.0.0.1:5000/1](http://127.0.0.1:5000/123)则会提示404错误.

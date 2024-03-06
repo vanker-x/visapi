@@ -113,7 +113,7 @@ app = Application()
 
 @app.route('/', methods=['GET'])
 def say_hi(*args, **kwargs):
-    return response.ResponsePlain(f'Hi,your request path is {request.path}')
+    return response.Response(f'Hi,your request path is {request.path}')
 
 
 if __name__ == '__main__':

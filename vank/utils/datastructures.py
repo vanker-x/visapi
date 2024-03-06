@@ -119,6 +119,10 @@ class Headers:
         if raw_headers:
             self._list = [(key.encode('latin-1'), value.encode('latin-1')) for key, value in raw_headers]
 
+    @property
+    def raw(self):
+        return self._list.copy()
+
     def __iter__(self):
         return iter(self._list)
 
