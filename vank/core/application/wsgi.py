@@ -4,7 +4,7 @@ from vank.core import exceptions
 from wsgiref.simple_server import make_server
 from vank.core.context.base import auto_reset
 from vank.core.http.request import WSGIRequest
-from vank.core.http.response import BaseResponse
+from vank.core.http.response import Response
 from vank.core.application.base import MiddlewareAppMixin
 from vank.core.context.current import application, request
 from vank.core.routing.router import Router, RouteNotFound
@@ -48,14 +48,14 @@ class WSGIApplication(MiddlewareAppMixin, Router):
         converted = route.convert_arguments(**route_kwargs)
         kwargs.update(converted)
         response = route.callback(*args, **kwargs)
-        if not isinstance(response, BaseResponse):
+        if not isinstance(response, Response):
             raise exceptions.NoResponseException(
                 f'The callback "{route.callback}" '
                 f'at file "{get_obj_file(route.callback)}" did not return a response'
             )
         return response
 
-    def _finish_response(self, response: BaseResponse, start_response: callable) -> t.Iterable[bytes]:
+    def _finish_response(self, response: Response, start_response: callable) -> t.Iterable[bytes]:
         """
         处理response 调用start_response设置响应状态码和响应头
         :param response: 封装的response 详情请看Vank/core/http/response
@@ -68,7 +68,7 @@ class WSGIApplication(MiddlewareAppMixin, Router):
         headers = response.headers.items()
         # 设置cookie
         headers.extend([("Set-Cookie", cookie.output(header="")) for cookie in response.cookies.values()])
-        start_response(response.status, headers)
+        start_response(response.status_code, headers)
         return response
 
     @auto_reset(lambda self, *args, **kwargs: (application._wrapped.set(self), application))  # noqa

@@ -1,7 +1,7 @@
 from vank.core.config import conf
 from vank.core.context.current import request
 from vank.middleware.base import Middleware
-from vank.core.http.response import ResponsePlain, Response400
+from vank.core.http.response import Response, BadRequest
 
 
 class CorsMiddleware(Middleware):
@@ -79,5 +79,5 @@ class CorsMiddleware(Middleware):
                 # 如果都符合,那么应该返回
                 response_headers['Access-Control-Allow-Headers'] = headers
         if failed_flag:
-            return Response400('', headers=response_headers)
-        return ResponsePlain('OK', headers=response_headers)
+            return BadRequest('', headers=response_headers)
+        return Response('OK', headers=response_headers)

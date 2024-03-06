@@ -2,7 +2,7 @@ from pathlib import Path
 from vank.core.config import conf
 from email.utils import parsedate_to_datetime
 from vank.core.exceptions import NotFoundException
-from vank.core.http.response import ResponseFile, ResponsePlain
+from vank.core.http.response import FileResponse, Response
 
 
 def _is_file_modified(gmt_date: str, file_mtime) -> bool:
@@ -30,9 +30,5 @@ def get_file(if_modify_since: str, fp: str):
     if if_modify_since:
         last_modify_time = full_path.stat().st_mtime
         if _is_file_modified(if_modify_since, last_modify_time):
-            return ResponsePlain(status=304)
-    return ResponseFile(filepath=full_path.as_posix())
-
-
-async def return_file(filepath):
-    pass
+            return Response(status=304)
+    return FileResponse(filepath=full_path.as_posix())

@@ -54,7 +54,7 @@ api_sub = SubApplication('api')
 
 @api_sub.get('/')
 def sub_index():
-    return response.ResponsePlain("这是api子应用的index视图")
+    return response.Response("这是api子应用的index视图")
 ```
 ## 注册子应用
 === "通过主应用的include方法1"
