@@ -1,0 +1,33 @@
+[build-system]
+requires = ['setuptools>=61.0']
+build-backend = 'setuptools.build_meta'
+[project]
+name = "visapi"
+dynamic = ["version"]
+authors = [
+    { name = "Vank", email = "852003793@qq.com" },
+]
+
+description = "VisAPI, Is A Development Friendly Web Framework With Python 3.9+"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    'Topic :: Internet :: WWW/HTTP'
+]
+dependencies = ["granian"]
+
+[project.urls]
+"Homepage" = "https://github.com/vanker-x/visapi"
+"Documentation" = "https://docs.visapi.dev/"
+
+[project.entry-points.console_scripts]
+vank = "visapi.__main__:entry_point"
+
+[tool.setuptools.dynamic]
+version = { attr = "visapi.__version__" }

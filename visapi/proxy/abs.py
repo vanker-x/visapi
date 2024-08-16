@@ -1,0 +1,2 @@
+class Proxy(object):
+    pass
